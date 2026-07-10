@@ -1,0 +1,7 @@
+{
+  "best_pt": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training/weights/best.pt",
+  "best_pt_included": true,
+  "last_pt": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training/weights/last.pt",
+  "last_pt_included": true,
+  "note": "Both best.pt and last.pt were included."
+}

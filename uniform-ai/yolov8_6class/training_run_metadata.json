@@ -1,0 +1,14 @@
+{
+  "run_dir": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training",
+  "best_pt": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training/weights/best.pt",
+  "last_pt": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training/weights/last.pt",
+  "results_csv": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training/results.csv",
+  "training_log": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/framework_logs/20260629_202403_training.log",
+  "training_results_summary": {
+    "rows": 152,
+    "metrics/precision(B)": 0.93354,
+    "metrics/recall(B)": 0.94396,
+    "metrics/mAP50(B)": 0.95761,
+    "metrics/mAP50-95(B)": 0.73609
+  }
+}

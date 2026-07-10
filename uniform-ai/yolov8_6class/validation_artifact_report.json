@@ -1,0 +1,48 @@
+{
+  "validation_started_at": "2026-06-30T05:38:24",
+  "validation_run_dir": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_validation",
+  "validation_log": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/framework_logs/20260630_053824_validation.log",
+  "validation_executed": true,
+  "candidate_artifact_directories": [
+    "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_validation",
+    "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training"
+  ],
+  "artifact_status": {
+    "confusion_matrix.png": {
+      "status": "copied",
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/confusion_matrix.png"
+    },
+    "confusion_matrix_normalized.png": {
+      "status": "copied",
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/confusion_matrix_normalized.png"
+    },
+    "PR_curve.png": {
+      "status": "generated_from_real_metrics",
+      "source": "Rendered from real validation curve arrays."
+    },
+    "F1_curve.png": {
+      "status": "generated_from_real_metrics",
+      "source": "Rendered from real validation curve arrays."
+    },
+    "P_curve.png": {
+      "status": "generated_from_real_metrics",
+      "source": "Rendered from real validation curve arrays."
+    },
+    "R_curve.png": {
+      "status": "generated_from_real_metrics",
+      "source": "Rendered from real validation curve arrays."
+    }
+  },
+  "artifact_sources": {
+    "confusion_matrix.png": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/confusion_matrix.png",
+    "confusion_matrix_normalized.png": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/confusion_matrix_normalized.png"
+  },
+  "artifact_generation": {
+    "PR_curve.png": "Rendered from real validation curve arrays.",
+    "F1_curve.png": "Rendered from real validation curve arrays.",
+    "P_curve.png": "Rendered from real validation curve arrays.",
+    "R_curve.png": "Rendered from real validation curve arrays."
+  },
+  "warnings": [],
+  "errors": []
+}

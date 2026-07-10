@@ -1,0 +1,287 @@
+Use the skill correctly.
+How to prompt taste-skill so your AI agent ships the kind of output the skill is designed to produce, not the kind it would default to.
+
+Why this guide exists
+taste-skill is a set of rules for AI coding agents. The rules only work if the agent actually loads the file, reads it in full, and treats it as the source of truth for the task. Most failures of taste-skill in the wild are not bugs in the skill. They are prompts that never gave the skill a real chance.
+
+This guide is the playbook. It covers how to load the skill, how to state the brief, what to demand from the agent before any code, and how to audit the output. It is opinionated on purpose. The defaults exist because most generic prompts produce generic output.
+
+The landing page you are reading this on is built by the same skill it markets. The same rules apply here.
+
+1. Load the skill
+Pick one of three load methods. All three put the same SKILL.md in front of the agent. The difference is convenience.
+
+Method 1
+
+Direct file read
+Open the SKILL.md file in your editor and tell the agent to read it. Cursor, Claude Code, Codex, Antigravity, and most other agents will pick it up from the open buffer or workspace.
+
+Method 2
+
+npx skills add
+One command. Drops the SKILL.md into your project so the agent reads it on every run. Recommended for ongoing projects.
+
+Method 3
+
+Paste in
+Paste the SKILL.md directly into the chat. Useful for ChatGPT, AI Studio, or any agent without filesystem access.
+
+Default install command:
+
+npx skills add https://github.com/Leonxlnx/taste-skill--skill "design-taste-frontend"
+Required instruction
+Tell the agent to treat the skill as the source of truth.
+Include this line at the top of your prompt, every time. Without it the agent will read the skill, then quietly fall back to its defaults.
+
+Treat this skill file as the single source of truth for this task. Read it in full. If anything in this skill conflicts with your defaults, the skill wins.
+2. The mandatory prompt shape
+Every prompt that uses the skill follows the same five steps. Skipping any of them is the main reason taste-skill output drifts back to generic.
+
+1
+Load the skill in full
+Reference the file or paste it in. Add the required instruction from Section 1.
+
+2
+State the brief
+Use the seven-field template in Section 3. Do not skip fields.
+
+3
+Demand the design read
+The agent must produce the design read in the required format before writing any code. Approve it before moving on.
+
+4
+Specify the deliverable
+One route, one component, one section. Not a whole product. Scope discipline keeps the audit honest.
+
+5
+Demand the pre-flight check
+End every code response with the consolidated audit from Section 5. No exceptions.
+
+Skeleton prompt:
+
+Load this file as your active skill for this conversation, in full, and treat it as the single source of truth that overrides defaults: <paste taste-skill SKILL.md or the install command>.
+
+Brief:
+  Page kind: <hero + features + pricing + footer, single landing, dashboard route, etc.>
+  Product or brand: <one line>
+  Audience: <one line>
+  Vibe words: <3 to 5 words>
+  Reference signals: <2 to 4 sites or screenshots>
+  What to avoid: <2 to 4 anti-patterns>
+  Out of scope: <what not to build>
+
+Before writing any code, do a design read in the format the skill requires.
+
+Deliverable: <one route, one component, one section, etc.>
+
+Run the skill pre-flight check on your output and report the result before finishing.
+3. Stating the brief
+The brief is the single biggest lever you have. A well-formed brief gives the agent enough signal to pick a direction. A vague brief forces defaults, and defaults are the source of slop.
+
+Template fields:
+
+Page kind. Marketing landing, single section, dashboard route, settings page, etc.
+Product or brand. One line. What it is, who built it.
+Audience. One line. Who reads this page and what they need.
+Vibe words. Three to five adjectives. Editorial, terminal-adjacent, calm. Or playful, dense, expressive. Or whatever fits.
+Reference signals. Two to four sites or screenshots. Concrete sources of taste, not vibes.
+What to avoid. Two to four explicit anti-patterns from the skill or from the brand. Glassmorphism, neon, fake dashboards, gradient text, etc.
+Out of scope. What not to build. Saves the agent from inventing pages you did not ask for.
+Well-formed brief
+Page kind: marketing landing for a code-review CLI.
+Product: nitpick, a local-first review tool for solo devs.
+Audience: senior backend engineers who do not want a SaaS.
+Vibe: editorial, terminal-adjacent, calm.
+Reference signals: usefulinterfaces.com, tailwindcss.com, the Linear changelog.
+Avoid: glassmorphism, neon, gradient text, fake screenshots.
+Out of scope: pricing page, dashboard.
+Poorly-formed brief
+Make a landing page for my tool. Make it look modern and beautiful.
+The agent will pick a default direction (usually gradient hero, three feature cards, fake testimonials) because the brief gave it nothing to react to.
+
+4. Enforcing the design read
+The design read is the agent stating, in writing, what it is about to build and why. It catches drift before any code is written. Do not approve code until the read is approved.
+
+Required format:
+
+DESIGN READ
+  Brief in one sentence: <restate>
+  Direction: <minimalist | editorial | brutalist | soft | playful | other>, with one line on why
+  Type system: <font families, weight ladder, italic usage>
+  Color system: <bg, surface, ink, muted, accent, status colors>
+  Spacing and density: <scale, section rhythm, container widths>
+  Motion plan: <where, why, MOTION_INTENSITY 0 to 5>
+  Section list: <6 to 10 ordered sections with one-line purpose each>
+  Anti-slop notes: <patterns this brief explicitly avoids>
+  Risks: <what is hard about this brief and how the design handles it>
+Reject cliche AI marketing copy in the design read. If the vibe words are "modern, beautiful, sleek", ask the agent to redo the brief restatement with specific words drawn from the references.
+
+5. Quality gates
+Every code response ends with the consolidated audit. Six gates. Each gate gets a pass or fail and a quoted piece of evidence. Anything failing blocks the response from being treated as done.
+
+Gate 1
+
+Em-dash and en-dash audit
+Search for U+2014 and U+2013 in the output. Both counts must be zero. Replace with plain hyphens, commas, or periods.
+
+Gate 2
+
+Pre-flight check
+Every box in the skill's pre-flight list must honestly pass. Quote the line of code or copy that proves each pass.
+
+Gate 3
+
+Section-layout repetition audit
+Across all sections, at least 4 distinct layout families. Three or more sections in a row sharing a family is a fail.
+
+Gate 4
+
+Image strategy audit
+Per-section image plan. No cropped reuse across sections. No Unsplash placeholders. Section-specific frames only.
+
+Gate 5
+
+Hero discipline audit
+H1 max 2 lines. Subhead under 20 words. Primary CTA visible without scroll at 1280 by 800.
+
+Gate 6
+
+Theme audit
+One page theme. Color and shape consistency across every section. No jumps from rounded-2xl to sharp-corner brutalist mid-page.
+
+Consolidated audit prompt:
+
+Run the full taste-skill audit on the output you just produced. For each gate, answer pass or fail and quote evidence from your own code or copy. Do not move on if anything fails.
+
+  Gate 1: Em-dash and en-dash audit. Search for "\u2014" and "\u2013". Both counts must be zero.
+  Gate 2: Pre-flight check. Every box in the skill's pre-flight list must honestly pass.
+  Gate 3: Section-layout repetition audit. Across all sections, at least 4 distinct layout families.
+  Gate 4: Image strategy audit. Per-section image plan, no cropped reuse, no Unsplash placeholders.
+  Gate 5: Hero discipline audit. Max 2 lines for the H1. Subhead under 20 words. CTA visible without scroll.
+  Gate 6: Theme audit. Color and shape consistency across the whole page. One page theme, not many.
+
+Report results inline before producing any new code.
+6. Example prompts
+Four canonical shapes. Adapt the brief block. Keep the load instruction and the audit demand intact.
+
+Build the full landing page from scratch
+Iterate on a single section
+Add a what's new in v2 section
+Audit an existing section against the skill
+7. What the agent must not do
+Three failure modes. Each one shows up regularly. Each one has a one-line correction you can paste.
+
+Process violations
+Skipping the design read and going straight to code.
+Treating the skill as a vibe, not a contract. Picking the rules they like and ignoring the rest.
+Inventing rules that contradict the skill, then citing the skill as the source.
+Skipping the pre-flight check, or running it dishonestly.
+Asking clarifying questions endlessly instead of taking a reasonable default from the brief.
+Output violations
+Em-dashes or en-dashes anywhere in the rendered output.
+Marketing slop words: revolutionary, transformative, supercharge, game-changer, paradigm shift, world-class, seamless, powerful, elevate, unleash.
+Section-numbering eyebrows (1 of 6), version labels in the hero (v1.5), and other artifacts banned by the skill.
+Fake dashboards, fake stats, fake product UI built from divs.
+Hero H1 longer than 2 lines. Subhead longer than 20 words. CTA below the fold on a 13 inch laptop.
+Three or more sections in a row that share the same layout family.
+Image strategy that crops or recycles the same frame across sections.
+Code violations
+raw window.addEventListener('scroll') for scroll-linked animation. Use the canonical GSAP or Motion patterns from Section 5.
+Hand-rolled SVG icons. Use Phosphor, HugeIcons, Radix, or Tabler.
+Lucide icon set. Discouraged for this skill.
+Inter as the body font on dashboards (banned by docs anti-slop list).
+Pure black (#000) backgrounds. Use the neutral ink tokens.
+Custom cursors and neon glows.
+Pixel-perfect 3-column equal card grids without justification.
+8. Iteration workflow
+Five passes. Do not try to nail the page in one. Each pass narrows the scope and tightens the audit.
+
+Pass 1: brief + design read
+Send the brief. Demand the design read in the exact format. Do not approve code yet. Push back on anything generic. If the agent picked a direction that does not match the brief, send a one-line correction and ask for the read again.
+
+Pass 2: first implementation
+Approve the design read. Ask for the implementation in one response, with the consolidated audit at the end. Read the audit before reading the code. If the agent reported any gate as failed, send back only the gate number and ask for the fix.
+
+Pass 3: section-scoped redesigns
+Pick the weakest section. Ask for a section-scoped design read, then a redesign, then a section-scoped audit. Repeat for the next weakest section. Resist the urge to redesign the whole page in one shot.
+
+Pass 4: motion and interaction
+Only after the static layout passes the audit. Ask for the motion plan first (MOTION_INTENSITY, where, why), then the implementation using the canonical patterns from Section 5 of the skill. Verify reduced-motion behavior in the audit.
+
+Pass 5: final consolidated audit
+Ask the agent to run the consolidated audit on the full file, gate by gate, quoting evidence. Anything still failing goes back into Pass 3 or Pass 4. Ship only when every gate honestly passes.
+
+9. Troubleshooting
+Common failures with the exact correction. Send the correction as a one-line follow-up. Do not start a new conversation.
+
+The agent ignores the skill and produces generic output.
+
+It probably did not load the file. Open the file you pasted and confirm the full SKILL.md is in the context. Re-send with the line: 'Load this file as your active skill, in full, and treat it as the single source of truth that overrides defaults.' If you are using npx skills add, confirm the file exists in your project tree and that the agent can read it.
+
+The agent does the design read but the implementation drifts.
+
+Force a re-read by quoting the design read in your next message and asking: 'Does this implementation match the design read above? Quote evidence for each row.' Drift usually shows up in the type system, motion plan, and section list first.
+
+The agent keeps inserting em-dashes.
+
+Send a one-line correction: 'Re-run Gate 1. Search for the exact characters em-dash U+2014 and en-dash U+2013. Both counts must be zero. Fix in place and report new counts.' Some agents need this twice.
+
+Pre-flight check reports pass but the output is obviously bad.
+
+The pre-flight was dishonest. Ask: 'Re-run the pre-flight check. For each box, quote the exact line of code or copy that justifies the pass.' Most failures get caught the second time.
+
+Sections all look the same.
+
+Run Gate 3 explicitly. Ask the agent to list the layout family of every section in one column and the section title in another. If fewer than 4 distinct families appear across 8 sections, ask for a redesign of the repeat offenders.
+
+Hero is too tall on a 13 inch laptop.
+
+Run Gate 5. Hero H1 max 2 lines, subhead under 20 words, primary CTA visible without scroll at 1280 by 800. If the gate fails, ask the agent to cut copy and tighten spacing rather than scale the type down.
+
+The motion looks generic.
+
+The agent likely skipped the motion plan and reached for a default fade. Ask for a motion plan first, including MOTION_INTENSITY 0 to 5 and a one-line justification per element. Implementation comes after.
+
+Dark mode is broken.
+
+Section 8 of the skill requires contrast and hierarchy parity across themes. Ask: 'Audit dark mode against light mode. List every component where the contrast ratio or visual hierarchy differs. Fix in place.'
+
+10. Install commands
+Three install paths. Pick one. The primary install pulls v2 experimental of the core skill, which is the recommended default.
+
+Primary
+npx skills add https://github.com/Leonxlnx/taste-skill--skill "design-taste-frontend"
+Legacy v1
+npx skills add https://github.com/Leonxlnx/taste-skill--skill "design-taste-frontend-v1"
+Full repo
+npx skills add Leonxlnx/taste-skill
+Manual install: copy skills/taste-skill/SKILL.md from the repo into your project root, or paste it directly into the agent conversation.
+
+11. Links and references
+taste-skill on GitHub
+↗
+v2 SKILL.md
+↗
+Legacy v1 SKILL.md
+↗
+CHANGELOG.md
+↗
+Docs (install, compatibility, skill list)
+Changelog (what shipped in v2)
+12. TL;DR
+01
+Load the skill in full and tell the agent to treat it as the source of truth.
+02
+State the brief in the seven-field template. Do not skip fields.
+03
+Demand the design read in the required format before any code.
+04
+Specify exactly one deliverable per pass.
+05
+Demand the consolidated audit at the end of every code response.
+06
+Run Gates 1, 3, 5, and 6 yourself, by eye, after the agent reports pass.
+07
+Iterate per section, not per page. Pass 1 to Pass 5.
+08
+Reject marketing fluff, em-dashes, fake dashboards, and section-layout repetition every time.

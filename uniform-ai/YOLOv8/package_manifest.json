@@ -1,0 +1,186 @@
+{
+  "created_at": "2026-06-07T06:02:33",
+  "project_name": "school_uniform_yolov8",
+  "classes": {
+    "0": "ao_so_mi_trang",
+    "1": "ao_doan_thanh_nien",
+    "2": "quan_tay_dai_den",
+    "3": "khan_quang_do"
+  },
+  "bad_ids_excluded": [
+    1193,
+    1194,
+    2329
+  ],
+  "run_dir": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s",
+  "best_pt_source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/weights/best.pt",
+  "last_pt_source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/weights/last.pt",
+  "copied_files": [
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/weights/best.pt",
+      "package_path": "best.pt"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/weights/last.pt",
+      "package_path": "last.pt"
+    },
+    {
+      "source": "/content/uniform_yolo_dataset/data.yaml",
+      "package_path": "data.yaml"
+    },
+    {
+      "source": "generated",
+      "package_path": "classes.txt"
+    },
+    {
+      "source": "generated",
+      "package_path": "class_names.json"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/results.csv",
+      "package_path": "training_outputs/results.csv"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/args.yaml",
+      "package_path": "training_outputs/args.yaml"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/results.png",
+      "package_path": "training_outputs/results.png"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/confusion_matrix.png",
+      "package_path": "training_outputs/confusion_matrix.png"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/confusion_matrix_normalized.png",
+      "package_path": "training_outputs/confusion_matrix_normalized.png"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/labels.jpg",
+      "package_path": "training_outputs/labels.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/train_batch0.jpg",
+      "package_path": "training_outputs/train_batch0.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/train_batch1.jpg",
+      "package_path": "training_outputs/train_batch1.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/train_batch2.jpg",
+      "package_path": "training_outputs/train_batch2.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/val_batch0_labels.jpg",
+      "package_path": "training_outputs/val_batch0_labels.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/val_batch0_pred.jpg",
+      "package_path": "training_outputs/val_batch0_pred.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/val_batch1_labels.jpg",
+      "package_path": "training_outputs/val_batch1_labels.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/val_batch1_pred.jpg",
+      "package_path": "training_outputs/val_batch1_pred.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/val_batch2_labels.jpg",
+      "package_path": "training_outputs/val_batch2_labels.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/val_batch2_pred.jpg",
+      "package_path": "training_outputs/val_batch2_pred.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/dataset_validation_report.json",
+      "package_path": "reports/dataset_validation_report.json"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/dataset_validation_report.csv",
+      "package_path": "reports/dataset_validation_report.csv"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/split_summary.csv",
+      "package_path": "reports/split_summary.csv"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/class_distribution.csv",
+      "package_path": "reports/class_distribution.csv"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/split_manifest.csv",
+      "package_path": "reports/split_manifest.csv"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/validation_metrics.json",
+      "package_path": "reports/validation_metrics.json"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/training_curves.png",
+      "package_path": "reports/training_curves.png"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/class_distribution.png",
+      "package_path": "reports/class_distribution.png"
+    },
+    {
+      "source": "generated",
+      "package_path": "infer_windows.py"
+    },
+    {
+      "source": "generated",
+      "package_path": "requirements_windows.txt"
+    },
+    {
+      "source": "generated",
+      "package_path": "run_example_windows.bat"
+    },
+    {
+      "source": "generated",
+      "package_path": "README_WINDOWS_11.txt"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image0.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image1.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image2.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image3.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image4.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image5.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image6.jpg"
+    },
+    {
+      "source": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/sample_predictions",
+      "package_path": "sample_predictions/image7.jpg"
+    }
+  ],
+  "skipped_optional_files": [
+    "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/PR_curve.png",
+    "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/F1_curve.png",
+    "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/P_curve.png",
+    "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/train_uniform_yolov8s/R_curve.png"
+  ]
+}

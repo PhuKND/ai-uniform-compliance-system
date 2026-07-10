@@ -1,0 +1,55 @@
+{
+  "image_dataset_dir": "/content/drive/MyDrive/DATN2/dataset_images",
+  "labels_all_dir": "/content/drive/MyDrive/DATN2/labels/all",
+  "output_root": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output",
+  "temporary_work_dir": "/content/uniform_yolo_dataset",
+  "data_yaml_path": "/content/uniform_yolo_dataset/data.yaml",
+  "model_weights": "yolov8s.pt",
+  "training_method": "transfer learning / fine-tuning from yolov8s.pt",
+  "nc": 6,
+  "class_names": [
+    "ao_so_mi_trang",
+    "ao_doan_thanh_nien",
+    "quan_tay_dai_den",
+    "khan_quang_do",
+    "quan_short_tay_den",
+    "quan_dai_trang"
+  ],
+  "bad_ids": [
+    357,
+    4105
+  ],
+  "allowed_legacy_ids": [
+    1193,
+    1194,
+    2329
+  ],
+  "train_only_id_range": [
+    4904,
+    5300
+  ],
+  "random_seed": 42,
+  "validation_ratio_target": 0.1,
+  "imgsz": 640,
+  "epochs": 200,
+  "batch": 8,
+  "workers": 2,
+  "patience": 40,
+  "cache": false,
+  "augmentation": {
+    "fliplr": 0.5,
+    "degrees": 7.0,
+    "translate": 0.1,
+    "scale": 0.4,
+    "perspective": 0.0005,
+    "hsv_h": 0.015,
+    "hsv_s": 0.5,
+    "hsv_v": 0.35,
+    "mosaic": 1.0,
+    "cos_lr": true
+  },
+  "splits": {
+    "train": 3525,
+    "val": 392
+  }
+}

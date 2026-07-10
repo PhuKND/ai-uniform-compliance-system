@@ -1,0 +1,11 @@
+﻿row_type,metric,value,class_id,class_name,instances
+metric,Precision,0.9318855743489304,,,
+metric,Recall,0.9372927046846636,,,
+metric,mAP@0.50,0.9574369496049472,,,
+metric,mAP@0.50:0.95,0.7376114278471765,,,
+validation_class_instances,object_instances,,0,ao_so_mi_trang,213
+validation_class_instances,object_instances,,1,ao_doan_thanh_nien,143
+validation_class_instances,object_instances,,2,quan_tay_dai_den,160
+validation_class_instances,object_instances,,3,khan_quang_do,165
+validation_class_instances,object_instances,,4,quan_short_tay_den,91
+validation_class_instances,object_instances,,5,quan_dai_trang,129

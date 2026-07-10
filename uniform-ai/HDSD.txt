@@ -1,0 +1,1179 @@
+HƯỚNG DẪN SỬ DỤNG UNIFORM-AI TÍCH HỢP
+======================================
+
+1. MỤC ĐÍCH DỰ ÁN
+-----------------
+
+`uniform-ai` là server Flask duy nhất cho hệ thống đánh giá tuân thủ nội quy đồng phục học sinh trung học cơ sở.
+
+Khi chạy:
+
+```powershell
+python app.py
+```
+
+hoặc 
+cd C:\Users\KaNija\Desktop\DATN\Code3\UNIFORM-LIB\uniform-ai
+.\.venv\Scripts\Activate.ps1
+python app.py
+
+
+
+Hoặc
+& c:\Users\KaNija\Desktop\DATN\Code3\uniform-lib\uniform-ai\.venv\Scripts\Activate.ps1
+python app.py
+
+server tại `http://127.0.0.1:5001` cung cấp toàn bộ AI:
+
+- Nhận diện khuôn mặt học sinh bằng InsightFace.
+- Đánh giá đồng phục bằng Grounding DINO, SCHP ATR, Florence-2 và RuleEngine.
+- Nhận diện 4 thành phần đồng phục bằng YOLOv8.
+- API kết hợp định danh học sinh + đánh giá đồng phục.
+
+Không cần chạy server riêng trong `face-recognition-service/`.
+
+2. SCHEMA ĐỒNG PHỤC CHÍNH THỨC
+------------------------------
+
+Các class đồng phục đang hoạt động chỉ gồm đúng 4 key:
+
+```text
+0: ao_so_mi_trang
+1: ao_doan_thanh_nien
+2: quan_tay_dai_den
+3: khan_quang_do
+```
+
+Các nhãn cũ như badge, emblem, belt, skirt, school badge, school emblem, huy_hieu, phu_hieu, that_lung, trousers_or_skirt chỉ là ghi chú lịch sử và không được dùng trong logic đang chạy.
+
+3. CẤU TRÚC THƯ MỤC
+-------------------
+
+```text
+UNIFORM-AI/
+|-- app.py
+|-- requirements.txt
+|-- README.md
+|-- HDSD.txt
+|-- .env.example
+|-- test.jpg
+|-- app/
+|   |-- config.py
+|   |-- face/
+|   |   |-- __init__.py
+|   |   |-- config.py
+|   |   |-- routes.py
+|   |   |-- face_engine.py
+|   |   |-- student_repository.py
+|   |   |-- file_utils.py
+|   |   `-- response_utils.py
+|   |-- services/
+|   |   |-- florence_service.py
+|   |   |-- grounding_service.py
+|   |   |-- parsing_service.py
+|   |   |-- rule_engine.py
+|   |   `-- yolov8_service.py
+|   `-- utils/
+|       |-- file_utils.py
+|       `-- response_utils.py
+|-- yolov8_6class/
+|   |-- best.pt
+|   |-- class_names.json
+|   |-- classes.txt
+|   |-- data.yaml
+|   |-- model_provenance.json
+|   |-- training_configuration.json
+|   |-- validation_metrics.json
+|   `-- Train_uniform_AI_YOLOv8_(6) (1).ipynb
+|-- YOLOv8/                 (archive cũ, không dùng cho production)
+|-- weights/
+|   `-- exp-schp-201908301523-atr.pth
+|-- storage/
+|   |-- students.json
+|   |-- embeddings/
+|   `-- uploads/
+|-- uploads/
+|-- outputs/
+|   `-- yolov8/
+`-- face-recognition-service/
+    `-- storage/    (nguồn dữ liệu cũ, được copy an toàn khi migrate)
+```
+
+`storage/` ở thư mục gốc là nơi lưu metadata và embedding khuôn mặt sau khi tích hợp. Nếu `storage/students.json` chưa tồn tại nhưng `face-recognition-service/storage/students.json` có sẵn, server sẽ copy dữ liệu cũ sang `storage/` trong lần khởi động đầu tiên. Thư mục cũ không bị xóa.
+
+4. FILE BẮT BUỘC TRONG `yolov8_6class/`
+--------------------------------
+
+Đặt các file sau trong `yolov8_6class/`:
+
+```text
+best.pt
+class_names.json
+classes.txt
+data.yaml
+model_provenance.json
+training_configuration.json
+validation_metrics.json
+Train_uniform_AI_YOLOv8_(6) (1).ipynb
+```
+
+Production inference chỉ dùng `yolov8_6class/best.pt`. Không fallback sang `last.pt`.
+
+`class_names.json`, `classes.txt`, `data.yaml` phải khớp đúng 6 class chính thức, đúng thứ tự:
+
+```text
+0 ao_so_mi_trang
+1 ao_doan_thanh_nien
+2 quan_tay_dai_den
+3 khan_quang_do
+4 quan_short_tay_den
+5 quan_dai_trang
+```
+
+Nếu sai thứ tự hoặc sai tên class, YOLOv8 V2 sẽ bị báo unavailable.
+
+5. CÀI ĐẶT TRÊN WINDOWS 11
+--------------------------
+
+Mở PowerShell tại thư mục dự án:
+
+```powershell
+cd path\to\UNIFORM-AI
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Nếu PowerShell chặn activate:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+
+```
+
+Ghi chú OpenCV: root `requirements.txt` dùng `opencv-python`. Không nên cài đồng thời `opencv-python` và `opencv-python-headless` nếu môi trường bị xung đột. Nếu triển khai server không cần GUI và muốn dùng bản headless, hãy gỡ một bản trước rồi cài bản còn lại.
+
+6. CẤU HÌNH MÔI TRƯỜNG
+----------------------
+
+Có thể copy `.env.example` thành `.env` để chỉnh cấu hình local. Không commit `.env`.
+
+Các biến quan trọng:
+
+```text
+UNIFORM_PORT=5001
+UNIFORM_UPLOAD_DIR=uploads
+UNIFORM_OUTPUT_DIR=outputs
+UNIFORM_WEIGHTS_DIR=weights
+UNIFORM_AI_YOLOV8_V2_ENABLED=true
+UNIFORM_AI_YOLOV8_V2_DIR=yolov8_6class
+UNIFORM_AI_YOLOV8_V2_WEIGHTS=yolov8_6class/best.pt
+UNIFORM_AI_YOLOV8_V2_CONF=0.25
+UNIFORM_AI_YOLOV8_V2_IMGSZ=640
+UNIFORM_AI_YOLOV8_V2_MAX_DET=30
+UNIFORM_AI_GROUNDING_DINO_V2_ENABLED=true
+UNIFORM_SHIRT_POLICY=white_or_youth_union
+UNIFORM_REQUIRE_RED_SCARF=true
+
+FACE_SIMILARITY_THRESHOLD=0.5
+FACE_STORAGE_DIR=storage
+FACE_UPLOAD_DIR=storage/uploads
+FACE_EMBEDDING_DIR=storage/embeddings
+FACE_METADATA_FILE=storage/students.json
+FACE_ALLOWED_IMAGE_EXTENSIONS=jpg,jpeg,png,webp
+INSIGHTFACE_MODEL_NAME=buffalo_l
+INSIGHTFACE_CTX_ID=-1
+INSIGHTFACE_PROVIDERS=CPUExecutionProvider
+INSIGHTFACE_DET_SIZE=640,640
+```
+
+Server cũng hỗ trợ các biến cũ của face service như `SIMILARITY_THRESHOLD`, `STORAGE_DIR`, `UPLOAD_DIR`, `EMBEDDING_DIR`, `METADATA_FILE`, `ALLOWED_IMAGE_EXTENSIONS`.
+
+7. CHẠY SERVER
+--------------
+
+```powershell
+python app.py
+```
+
+Server mặc định:
+
+```text
+http://127.0.0.1:5001
+```
+
+8. DANH SÁCH API
+----------------
+
+Uniform:
+
+```text
+GET  /api/uniform/health
+POST /api/uniform/evaluate
+POST /api/uniform/yolov8/predict
+GET  /api/uniform/yolov8/outputs/<filename>
+```
+
+Face:
+
+```text
+GET    /api/face/health
+POST   /api/face/enroll
+POST   /api/face/enroll-sample
+POST   /api/face/verify
+POST   /api/face/identify
+DELETE /api/face/students/<student_id>
+POST   /api/face/reload
+```
+
+Combined:
+
+```text
+GET  /api/ai/health
+POST /api/ai/evaluate-student
+```
+
+9. FORMAT RESPONSE CHO FACE VÀ COMBINED
+---------------------------------------
+
+Thành công:
+
+```json
+{
+  "success": true,
+  "message": "Human readable message",
+  "data": {}
+}
+```
+
+Lỗi:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable error",
+    "details": {}
+  }
+}
+```
+
+10. API HEALTH
+--------------
+
+10.1. `GET /api/ai/health`
+
+Mục đích: kiểm tra toàn bộ server tích hợp.
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:5001/api/ai/health"
+```
+
+curl:
+
+```powershell
+curl.exe http://127.0.0.1:5001/api/ai/health
+```
+
+Response mẫu:
+
+```json
+{
+  "success": true,
+  "message": "AI server is healthy",
+  "data": {
+    "status": "ok",
+    "service": "uniform-ai-integrated",
+    "port": 5001,
+    "modules": {
+      "uniform": {},
+      "yolov8": {},
+      "face": {}
+    }
+  }
+}
+```
+
+10.2. `GET /api/uniform/health`
+
+Mục đích: kiểm tra uniform service và YOLOv8.
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:5001/api/uniform/health"
+```
+
+10.3. `GET /api/face/health`
+
+Mục đích: kiểm tra face service mà không bắt buộc load InsightFace model.
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:5001/api/face/health"
+```
+
+Response mẫu:
+
+```json
+{
+  "success": true,
+  "message": "Face service is healthy",
+  "data": {
+    "status": "ok",
+    "service": "face-recognition",
+    "model_name": "buffalo_l",
+    "model_loaded": false,
+    "providers": ["CPUExecutionProvider"],
+    "ctx_id": -1,
+    "similarity_threshold": 0.5,
+    "student_count": 0,
+    "total_sample_count": 0,
+    "loaded_embeddings": 0,
+    "skipped_embeddings": []
+  }
+}
+```
+
+11. UNIFORM API
+---------------
+
+11.1. `POST /api/uniform/evaluate`
+
+Mục đích: đánh giá đồng phục đầy đủ.
+
+Content-Type: `multipart/form-data`
+
+Body:
+
+```text
+image: required image file
+confidence: optional, default 0.25
+image_size: optional, default 640
+save_annotated: optional, default true
+```
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/api/uniform/evaluate" `
+  -Form @{ image = Get-Item ".\test.jpg" } | ConvertTo-Json -Depth 12
+```
+
+curl:
+
+```powershell
+curl.exe -X POST `
+  -F "image=@test.jpg" `
+  http://127.0.0.1:5001/api/uniform/evaluate
+```
+
+Response chính:
+
+```json
+{
+  "required_items": {
+    "ao_so_mi_trang": { "present": true, "score": 0.91 },
+    "ao_doan_thanh_nien": { "present": false, "score": 0.0 },
+    "quan_tay_dai_den": { "present": true, "score": 0.86 },
+    "khan_quang_do": { "present": true, "score": 0.82 }
+  },
+  "uniform_policy": {},
+  "appearance": {},
+  "overall": {
+    "compliance": "partially_compliant",
+    "score": 0.82
+  },
+  "notes": [],
+  "yolov8": {}
+}
+```
+
+Lỗi thường gặp: thiếu `image`, ảnh không đúng định dạng, thiếu SCHP checkpoint, lỗi tải model Hugging Face.
+
+11.2. `POST /api/uniform/yolov8/predict`
+
+Mục đích: chỉ chạy YOLOv8.
+
+Content-Type: `multipart/form-data`
+
+Body:
+
+```text
+image: required image file
+confidence: optional, default 0.25
+image_size: optional, default 640
+save_annotated: optional, default true
+```
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/api/uniform/yolov8/predict" `
+  -Form @{
+    image = Get-Item ".\test.jpg"
+    confidence = "0.25"
+    image_size = "640"
+    save_annotated = "true"
+  } | ConvertTo-Json -Depth 12
+```
+
+curl:
+
+```powershell
+curl.exe -X POST `
+  -F "image=@test.jpg" `
+  -F "confidence=0.25" `
+  -F "image_size=640" `
+  -F "save_annotated=true" `
+  http://127.0.0.1:5001/api/uniform/yolov8/predict
+```
+
+Response chính:
+
+```json
+{
+  "success": true,
+  "available": true,
+  "weights": "best.pt",
+  "detections": [
+    {
+      "class_id": 0,
+      "class_name": "ao_so_mi_trang",
+      "confidence": 0.91,
+      "bbox_xyxy": [10.0, 20.0, 300.0, 500.0]
+    }
+  ],
+  "summary": {
+    "total_detections": 1,
+    "detected_classes": ["ao_so_mi_trang"]
+  },
+  "annotated_image_url": "/api/uniform/yolov8/outputs/file.jpg"
+}
+```
+
+11.3. `GET /api/uniform/yolov8/outputs/<filename>`
+
+Mục đích: lấy ảnh đã vẽ bounding box.
+
+```powershell
+curl.exe -O http://127.0.0.1:5001/api/uniform/yolov8/outputs/example.jpg
+```
+
+12. FACE API
+------------
+
+12.1. `POST /api/face/enroll`
+
+Mục đích: tạo học sinh mới với mẫu khuôn mặt đầu tiên.
+
+Content-Type: `multipart/form-data`
+
+Body:
+
+```text
+student_id: required text
+student_name: required text
+sample_label: optional text, ví dụ front
+image: required image file
+```
+
+Quy tắc: ảnh phải có đúng 1 khuôn mặt. Nếu `student_id` đã tồn tại, dùng `/api/face/enroll-sample`.
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/api/face/enroll" `
+  -Form @{
+    student_id = "SV001"
+    student_name = "Nguyen Van A"
+    sample_label = "front"
+    image = Get-Item ".\face.jpg"
+  } | ConvertTo-Json -Depth 12
+```
+
+curl:
+
+```powershell
+curl.exe -X POST `
+  -F "student_id=SV001" `
+  -F "student_name=Nguyen Van A" `
+  -F "sample_label=front" `
+  -F "image=@face.jpg" `
+  http://127.0.0.1:5001/api/face/enroll
+```
+
+Response mẫu:
+
+```json
+{
+  "success": true,
+  "message": "Student enrolled successfully with first face sample",
+  "data": {
+    "student": { "student_id": "SV001", "student_name": "Nguyen Van A", "sample_count": 1 },
+    "sample": {},
+    "face": { "index": 0, "bbox": [10, 20, 100, 120], "detection_score": 0.998 }
+  }
+}
+```
+
+Lỗi thường gặp: `STUDENT_ALREADY_EXISTS`, `NO_FACE_FOUND`, `MULTIPLE_FACES_FOUND`.
+
+12.2. `POST /api/face/enroll-sample`
+
+Mục đích: thêm mẫu khuôn mặt cho học sinh đã tồn tại.
+
+Body:
+
+```text
+student_id: required text
+sample_label: optional text, ví dụ left, right, glasses
+image: required image file
+```
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/api/face/enroll-sample" `
+  -Form @{
+    student_id = "SV001"
+    sample_label = "left"
+    image = Get-Item ".\face_left.jpg"
+  } | ConvertTo-Json -Depth 12
+```
+
+curl:
+
+```powershell
+curl.exe -X POST `
+  -F "student_id=SV001" `
+  -F "sample_label=left" `
+  -F "image=@face_left.jpg" `
+  http://127.0.0.1:5001/api/face/enroll-sample
+```
+
+Lỗi thường gặp: `STUDENT_NOT_FOUND`, `NO_FACE_FOUND`, `MULTIPLE_FACES_FOUND`.
+
+12.3. `POST /api/face/verify`
+
+Mục đích: xác minh ảnh có thuộc về `student_id` hay không.
+
+Body:
+
+```text
+student_id: required text
+image: required image file
+```
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/api/face/verify" `
+  -Form @{
+    student_id = "SV001"
+    image = Get-Item ".\face_check.jpg"
+  } | ConvertTo-Json -Depth 12
+```
+
+curl:
+
+```powershell
+curl.exe -X POST `
+  -F "student_id=SV001" `
+  -F "image=@face_check.jpg" `
+  http://127.0.0.1:5001/api/face/verify
+```
+
+Response mẫu:
+
+```json
+{
+  "success": true,
+  "message": "Face verification completed",
+  "data": {
+    "verified": true,
+    "similarity": 0.742188,
+    "threshold": 0.5,
+    "student": {},
+    "sample_count": 3,
+    "loaded_sample_count": 3,
+    "best_sample": {},
+    "best_sample_id": "sample_...",
+    "best_sample_similarity": 0.742188,
+    "face": {
+      "index": 0,
+      "bbox": [10, 20, 100, 120],
+      "detection_score": 0.998
+    }
+  }
+}
+```
+
+Lỗi thường gặp: `STUDENT_NOT_FOUND`, `CORRUPTED_STORED_EMBEDDING`, `NO_FACE_FOUND`, `MULTIPLE_FACES_FOUND`.
+
+12.4. `POST /api/face/identify`
+
+Mục đích: nhận diện một hoặc nhiều khuôn mặt trong ảnh.
+
+Body:
+
+```text
+image: required image file
+```
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/api/face/identify" `
+  -Form @{ image = Get-Item ".\test.jpg" } | ConvertTo-Json -Depth 12
+```
+
+curl:
+
+```powershell
+curl.exe -X POST `
+  -F "image=@test.jpg" `
+  http://127.0.0.1:5001/api/face/identify
+```
+
+Response mẫu:
+
+```json
+{
+  "success": true,
+  "message": "Face identification completed",
+  "data": {
+    "face_count": 1,
+    "best_match": {
+      "matched": true,
+      "similarity": 0.71,
+      "threshold": 0.5,
+      "student": {}
+    },
+    "detections": [
+      {
+        "index": 0,
+        "bbox": [10, 20, 100, 120],
+        "detection_score": 0.998,
+        "match": {}
+      }
+    ]
+  }
+}
+```
+
+Nếu ảnh có nhiều mặt, `detections` trả về tất cả mặt; `best_match` chỉ có giá trị khi ảnh có đúng 1 mặt.
+
+12.5. `DELETE /api/face/students/<student_id>`
+
+Mục đích: xóa metadata, embedding và ảnh nguồn của một học sinh khi an toàn.
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Delete -Uri "http://127.0.0.1:5001/api/face/students/SV001"
+```
+
+curl:
+
+```powershell
+curl.exe -X DELETE http://127.0.0.1:5001/api/face/students/SV001
+```
+
+Response chính:
+
+```json
+{
+  "success": true,
+  "data": {
+    "sample_count_deleted": 3,
+    "deleted_embedding_files": 3,
+    "deleted_image_files": 3,
+    "remaining_student_count": 4
+  }
+}
+```
+
+12.6. `POST /api/face/reload`
+
+Mục đích: reload `students.json` và embedding mà không restart server.
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:5001/api/face/reload"
+curl.exe -X POST http://127.0.0.1:5001/api/face/reload
+```
+
+13. COMBINED API
+----------------
+
+13.1. `POST /api/ai/evaluate-student`
+
+Mục đích: chạy nhận diện khuôn mặt và đánh giá đồng phục trong một request.
+
+Content-Type: `multipart/form-data`
+
+Body:
+
+```text
+image: required image file
+student_id: optional text
+face_mode: optional text, allowed: verify, identify, none
+run_uniform: optional boolean, default true
+run_face: optional boolean, default true
+uniform_confidence: optional float, default 0.25
+uniform_image_size: optional int, default 640
+save_annotated: optional boolean, default true
+```
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:5001/api/ai/evaluate-student" `
+  -Form @{
+    image = Get-Item ".\test.jpg"
+    face_mode = "identify"
+    run_face = "true"
+    run_uniform = "true"
+    uniform_confidence = "0.25"
+    uniform_image_size = "640"
+    save_annotated = "true"
+  } | ConvertTo-Json -Depth 12
+```
+
+curl:
+
+```powershell
+curl.exe -X POST `
+  -F "image=@test.jpg" `
+  -F "face_mode=identify" `
+  -F "run_face=true" `
+  -F "run_uniform=true" `
+  -F "uniform_confidence=0.25" `
+  -F "uniform_image_size=640" `
+  -F "save_annotated=true" `
+  http://127.0.0.1:5001/api/ai/evaluate-student
+```
+
+Verify theo `student_id`:
+
+```powershell
+curl.exe -X POST `
+  -F "image=@test.jpg" `
+  -F "student_id=SV001" `
+  -F "face_mode=verify" `
+  -F "run_face=true" `
+  -F "run_uniform=true" `
+  http://127.0.0.1:5001/api/ai/evaluate-student
+```
+
+Response mẫu:
+
+```json
+{
+  "success": true,
+  "message": "AI evaluation completed",
+  "data": {
+    "request": {
+      "face_mode": "verify",
+      "run_face": true,
+      "run_uniform": true,
+      "student_id": "SV001"
+    },
+    "face": {
+      "ran": true,
+      "mode": "verify",
+      "verified": true,
+      "similarity": 0.742188,
+      "threshold": 0.5,
+      "student": {},
+      "face": {
+        "bbox": [10, 20, 100, 120],
+        "detection_score": 0.998
+      }
+    },
+    "uniform": {
+      "ran": true,
+      "required_items": {},
+      "uniform_policy": {},
+      "appearance": {},
+      "overall": {},
+      "notes": [],
+      "yolov8": {}
+    },
+    "final_decision": {
+      "identity_passed": true,
+      "uniform_passed": true,
+      "compliance": "compliant",
+      "should_allow": true,
+      "needs_review": false,
+      "reasons": []
+    }
+  }
+}
+```
+
+`final_decision.reasons` có thể gồm:
+
+```text
+FACE_NOT_MATCHED
+UNKNOWN_FACE
+UNIFORM_NON_COMPLIANT
+UNIFORM_NEEDS_REVIEW
+FACE_SKIPPED
+UNIFORM_SKIPPED
+```
+
+14. GIẢI THÍCH JSON ĐỒNG PHỤC
+-----------------------------
+
+`required_items`: trạng thái 4 thành phần chính thức.
+
+`uniform_policy`: chính sách áo trắng hoặc áo Đoàn, yêu cầu khăn quàng đỏ, số component đạt.
+
+`appearance`: so vin, nhăn, bẩn, rách/hỏng.
+
+`overall`: kết luận `compliant`, `partially_compliant`, `non_compliant`, hoặc `needs_review`.
+
+`notes`: cảnh báo và lỗi stage phụ nếu có.
+
+`yolov8`: kết quả detection YOLOv8, bbox và URL ảnh annotated.
+
+15. LỆNH TEST NHANH
+-------------------
+
+Compile:
+
+```powershell
+python -m py_compile app.py
+python -m py_compile app\config.py
+python -m py_compile app\services\yolov8_service.py
+python -m py_compile app\face\face_engine.py
+python -m py_compile app\face\student_repository.py
+python -m py_compile app\face\routes.py
+```
+
+Import smoke test:
+
+```powershell
+python -c "import flask; import flask_cors; import numpy; import cv2; import insightface; import onnxruntime; print('imports ok')"
+```
+
+Health:
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:5001/api/ai/health"
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:5001/api/uniform/health"
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:5001/api/face/health"
+```
+
+Nếu PowerShell đang dùng không hỗ trợ tham số `-Form`, dùng các lệnh `curl.exe` ở trên.
+
+16. JAVA SPRING BOOT EXAMPLES
+-----------------------------
+
+RestTemplate verify face:
+
+```java
+MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+body.add("student_id", "SV001");
+body.add("image", new FileSystemResource(new File("face.jpg")));
+
+HttpHeaders headers = new HttpHeaders();
+headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
+ResponseEntity<String> response = restTemplate.postForEntity(
+    "http://127.0.0.1:5001/api/face/verify",
+    request,
+    String.class
+);
+```
+
+RestTemplate uniform evaluate:
+
+```java
+MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+body.add("image", new FileSystemResource(new File("student.jpg")));
+
+HttpHeaders headers = new HttpHeaders();
+headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+ResponseEntity<String> response = restTemplate.postForEntity(
+    "http://127.0.0.1:5001/api/uniform/evaluate",
+    new HttpEntity<>(body, headers),
+    String.class
+);
+```
+
+WebClient combined:
+
+```java
+MultipartBodyBuilder builder = new MultipartBodyBuilder();
+builder.part("image", new FileSystemResource(new File("student.jpg")));
+builder.part("student_id", "SV001");
+builder.part("face_mode", "verify");
+builder.part("run_face", "true");
+builder.part("run_uniform", "true");
+
+String json = webClient.post()
+    .uri("http://127.0.0.1:5001/api/ai/evaluate-student")
+    .contentType(MediaType.MULTIPART_FORM_DATA)
+    .body(BodyInserters.fromMultipartData(builder.build()))
+    .retrieve()
+    .bodyToMono(String.class)
+    .block();
+```
+
+17. REACTJS EXAMPLES
+--------------------
+
+Không tự set header `Content-Type` khi dùng browser `fetch` với `FormData`; browser sẽ tự thêm boundary.
+
+Enroll face:
+
+```javascript
+const form = new FormData();
+form.append("student_id", "SV001");
+form.append("student_name", "Nguyen Van A");
+form.append("sample_label", "front");
+form.append("image", file);
+
+const res = await fetch("http://127.0.0.1:5001/api/face/enroll", {
+  method: "POST",
+  body: form,
+});
+const data = await res.json();
+```
+
+Verify face:
+
+```javascript
+const form = new FormData();
+form.append("student_id", "SV001");
+form.append("image", file);
+const data = await fetch("http://127.0.0.1:5001/api/face/verify", {
+  method: "POST",
+  body: form,
+}).then((r) => r.json());
+```
+
+Uniform evaluate:
+
+```javascript
+const form = new FormData();
+form.append("image", file);
+const data = await fetch("http://127.0.0.1:5001/api/uniform/evaluate", {
+  method: "POST",
+  body: form,
+}).then((r) => r.json());
+```
+
+Combined:
+
+```javascript
+const form = new FormData();
+form.append("image", file);
+form.append("student_id", "SV001");
+form.append("face_mode", "verify");
+form.append("run_face", "true");
+form.append("run_uniform", "true");
+form.append("uniform_confidence", "0.25");
+form.append("uniform_image_size", "640");
+
+const data = await fetch("http://127.0.0.1:5001/api/ai/evaluate-student", {
+  method: "POST",
+  body: form,
+}).then((r) => r.json());
+```
+
+18. ANDROID KOTLIN RETROFIT EXAMPLE
+-----------------------------------
+
+```kotlin
+interface AiApi {
+    @Multipart
+    @POST("api/ai/evaluate-student")
+    suspend fun evaluateStudent(
+        @Part image: MultipartBody.Part,
+        @Part("student_id") studentId: RequestBody?,
+        @Part("face_mode") faceMode: RequestBody,
+        @Part("run_uniform") runUniform: RequestBody,
+        @Part("run_face") runFace: RequestBody
+    ): Response<ResponseBody>
+}
+```
+
+Tạo multipart:
+
+```kotlin
+val file = File(imagePath)
+val imageBody = file.asRequestBody("image/jpeg".toMediaType())
+val imagePart = MultipartBody.Part.createFormData("image", file.name, imageBody)
+
+fun textPart(value: String) =
+    value.toRequestBody("text/plain".toMediaType())
+
+val response = api.evaluateStudent(
+    image = imagePart,
+    studentId = textPart("SV001"),
+    faceMode = textPart("verify"),
+    runUniform = textPart("true"),
+    runFace = textPart("true")
+)
+```
+
+Android emulator không truy cập được `localhost` của laptop bằng `127.0.0.1`. Dùng IP LAN của laptop, ví dụ:
+
+```text
+http://192.168.1.10:5001/
+```
+
+19. TROUBLESHOOTING
+-------------------
+
+`No module named insightface`:
+
+```powershell
+pip install insightface
+```
+
+Hoặc cài lại đầy đủ:
+
+```powershell
+pip install -r requirements.txt
+```
+
+`No module named onnxruntime`:
+
+```powershell
+pip install onnxruntime
+```
+
+InsightFace model download chậm:
+- Lần đầu gọi `/api/face/identify`, `/api/face/verify`, `/api/face/enroll` có thể tải model `buffalo_l`.
+- Kiểm tra mạng hoặc đặt `INSIGHTFACE_MODEL_ROOT` tới thư mục đã có model.
+
+CPU chậm:
+- Grounding DINO, Florence-2, SCHP và InsightFace đều nặng khi chạy CPU.
+- Nếu có GPU NVIDIA, cài PyTorch CUDA và cấu hình provider phù hợp.
+
+CUDA provider không khả dụng:
+- Giữ `INSIGHTFACE_PROVIDERS=CPUExecutionProvider` nếu không chắc chắn.
+- Chỉ dùng CUDA provider khi đã cài đúng `onnxruntime-gpu`, driver và CUDA.
+
+`NO_FACE_FOUND`:
+- Ảnh không có mặt rõ, mặt quá nhỏ, bị che hoặc ánh sáng kém.
+
+`MULTIPLE_FACES_FOUND`:
+- API enroll và verify yêu cầu đúng 1 khuôn mặt.
+- Cắt ảnh chỉ còn một học sinh rồi thử lại.
+
+`STUDENT_ALREADY_EXISTS`:
+- Dùng `/api/face/enroll-sample` để thêm góc mặt mới.
+
+`STUDENT_NOT_FOUND`:
+- Kiểm tra `student_id` hoặc enroll học sinh trước.
+
+`CORRUPTED_STORED_EMBEDDING`:
+- File `.npy` trong `storage/embeddings/` bị thiếu hoặc hỏng.
+- Có thể restore từ backup hoặc enroll lại học sinh.
+
+Storage path sai:
+- Kiểm tra `FACE_STORAGE_DIR`, `FACE_METADATA_FILE`, `FACE_EMBEDDING_DIR`.
+- Chạy `/api/face/reload` sau khi copy dữ liệu.
+
+Port 5001 đã được dùng:
+
+```powershell
+$env:UNIFORM_PORT="5002"
+python app.py
+```
+
+YOLO `best.pt` missing:
+- Đặt `yolov8_6class/best.pt` đúng vị trí.
+- Production không dùng `last.pt`; nếu thiếu `best.pt` thì YOLOv8 V2 phải báo unavailable.
+
+YOLO class mismatch:
+- Kiểm tra `class_names.json`, `classes.txt`, `data.yaml` phải đúng 6 class chính thức và đúng thứ tự.
+
+SCHP checkpoint missing:
+- Đặt file:
+
+```text
+weights/exp-schp-201908301523-atr.pth
+```
+
+`transformers==4.49.0` issue:
+- Dự án đang pin `transformers==4.49.0` để ổn định Florence-2.
+- Không tự nâng cấp nếu chưa test lại toàn bộ pipeline.
+
+CORS bị chặn từ React:
+- Thêm domain frontend vào `UNIFORM_CORS_ORIGINS`, ví dụ:
+
+```text
+UNIFORM_CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+```
+
+Android không gọi được server:
+- Không dùng `localhost` từ emulator/device.
+- Dùng IP LAN của laptop và đảm bảo firewall cho phép port 5001.
+
+PowerShell `Invoke-RestMethod -Form` không tồn tại:
+- Tham số `-Form` cần PowerShell phiên bản mới.
+- Dùng `curl.exe -F` thay thế trên Windows PowerShell cũ.
+POSE-BASED TARGET STUDENT VALIDATION
+------------------------------------
+
+He thong da bo sung YOLO pose de chon dung 1 hoc sinh muc tieu:
+
+- Model mac dinh: `yolov8n-pose.pt`.
+- Cach chon: nguoi co pose/body bbox lon nhat, co cong them pose confidence va so keypoint hop le.
+- Chi hoc sinh duoc chon moi duoc ve skeleton, nhan dien khuon mat va cham diem dong phuc.
+- Khuon mat chi duoc nhan dien neu face bbox khop vung dau cua pose duoc chon.
+- YOLO raw detections duoc tach thanh `accepted_detections` va `rejected_detections`.
+- Diem dong phuc chi dung cac YOLO detections nam trong `accepted_detections`.
+- Backend luu va tra ve 1 anh preview cuoi cung duy nhat sau khi validate pose-YOLO.
+- Anh preview cuoi cung co ca skeleton cua hoc sinh duoc chon va YOLO bbox hop le/bi loai.
+- Frontend nen hien thi `processed_image_url` hoac `final_annotated_image_url`.
+
+Test nhanh pose + YOLO validation:
+
+```powershell
+.\.venv\Scripts\python.exe test_pose_yolo_association.py --image test.jpg --confidence 0.10 --save-annotated
+```
+
+Test qua API:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:5001/api/uniform/yolov8/predict ^
+  -F "image=@test.jpg" ^
+  -F "validate_pose=true" ^
+  -F "confidence=0.10" ^
+  -F "save_annotated=true"
+```
+
+Cac truong frontend nen doc:
+
+```text
+pose.selected_person
+face.face_matched_to_selected_pose
+pose_validated_yolov8.raw_yolo_detections
+pose_validated_yolov8.accepted_detections
+pose_validated_yolov8.rejected_detections
+pose_validated_yolov8.compliance_result
+processed_image_url
+final_annotated_image_url
+pose_validated_yolov8.annotated_image_url
+pose_validated_yolov8.final_annotated_image_url
+```
+
+Chi tiet day du nam trong `POSE_VALIDATION_WINDOWS.md`.

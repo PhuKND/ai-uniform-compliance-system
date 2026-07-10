@@ -1,0 +1,6 @@
+npm run dev -- --host 127.0.0.1 --port 5173
+
+Real-time Camera:
+- Admin route: /realtime-camera
+- Camera works on localhost. On deployed domains, use HTTPS.
+- Mobile browsers prefer the rear camera first; use Switch camera to change cameras.

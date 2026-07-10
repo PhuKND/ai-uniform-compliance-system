@@ -1,0 +1,108 @@
+﻿# =========================================================
+# Git ignore for AI Uniform Compliance System
+# Push source only:
+# backend/, frontend/, uniform-ai/, README.md
+# =========================================================
+
+# Root folders/files not pushed
+.agents/
+.vscode/
+skills-lock.json
+
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+**/application-secret.properties
+**/application-secret.yml
+
+# Frontend dependencies/build
+**/node_modules/
+**/dist/
+**/build/
+**/.vite/
+**/.next/
+**/coverage/
+
+# Backend Java/Spring Boot build files
+**/target/
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+
+# Python virtual environment/cache
+**/venv/
+**/.venv/
+**/env/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+
+# AI runtime/generated folders
+**/uploads/
+**/outputs/
+**/runs/
+**/logs/
+**/temp/
+**/tmp/
+
+# YOLOv8 training generated files/folders inside uniform-ai
+uniform-ai/training_yolov8/runs/
+uniform-ai/training_yolov8/outputs/
+uniform-ai/training_yolov8/logs/
+uniform-ai/training_yolov8/weights/
+uniform-ai/training_yolov8/checkpoints/
+uniform-ai/training_yolov8/dataset/
+uniform-ai/training_yolov8/datasets/
+
+# AI model weights / large model files
+**/*.pt
+**/*.pth
+**/*.onnx
+**/*.engine
+**/*.pkl
+**/*.joblib
+**/*.h5
+**/*.ckpt
+**/*.safetensors
+
+# Dataset / large media files
+**/dataset/
+**/datasets/
+**/data/images/
+**/data/labels/
+**/*.mp4
+**/*.avi
+**/*.mov
+**/*.mkv
+
+# Compressed files
+**/*.zip
+**/*.rar
+**/*.7z
+**/*.tar
+**/*.gz
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# Local database files
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+
+# Avoid committing embedded third-party git repository
+uniform-ai/third_party/schp/
+
+# Avoid committing real/sample student images
+uniform-ai/main-test-image-*.jpg
+uniform-ai/yolov8_6class/bbox_preview_samples/
+uniform-ai/yolov8_6class/sample_predictions/
