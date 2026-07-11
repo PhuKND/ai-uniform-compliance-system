@@ -134,7 +134,6 @@ export function ComparisonPage() {
   }
 
   const visibleMethods = visibleMethodList(methodsByKey, comparison);
-  const singleMethodResult = visibleMethods.length === 1;
   const runId = comparison.runId;
 
   async function submitOfficial(event: FormEvent) {
@@ -174,7 +173,7 @@ export function ComparisonPage() {
       <div className="comparison-summary">
         <div>
           <p className="eyebrow">Run #{comparison.runId}</p>
-          <h2>{singleMethodResult ? "Kết quả phương pháp AI" : "So sánh hai phương pháp AI"}</h2>
+          <h2>So sánh hai phương pháp AI</h2>
           <p className="muted">Tạo lúc {formatDateTime(comparison.createdAt)} · {jobStatusLabel(comparison.status)}</p>
         </div>
         <div className="summary-student">

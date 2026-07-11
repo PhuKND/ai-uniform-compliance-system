@@ -71,7 +71,7 @@ export function UploadPage() {
   const [compressionNote, setCompressionNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>("lightweight");
+  const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>("advanced");
   const [selectedMethod, setSelectedMethod] = useState<AdvancedEvaluationMethod>("YOLOV8_V2");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
@@ -93,8 +93,8 @@ export function UploadPage() {
   );
   const effectiveSubmitLabel =
     evaluationMode === "lightweight"
-      ? `Chạy nhanh ${selectedMethodInfo.shortLabel}`
-      : `Chạy đầy đủ ${selectedMethodInfo.shortLabel}`;
+      ? "Chạy đánh giá nhanh không SCHP/FLORENCE"
+      : `Chạy ${selectedMethodInfo.shortLabel}`;
   const cameraSelected = imageSource === "camera";
   const hasSingleCamera = availableVideoDevices.length === 1;
 
@@ -316,7 +316,7 @@ export function UploadPage() {
       );
       const result =
         evaluationMode === "lightweight"
-          ? await runLightweightEvaluation(compressed.file, selectedMethod, studentCode)
+          ? await runLightweightEvaluation(compressed.file, studentCode)
           : await runAdvancedEvaluation(compressed.file, selectedMethod, studentCode);
       saveLatestComparison(result);
       navigate("/compare", { state: { result } });
@@ -334,7 +334,7 @@ export function UploadPage() {
           <p className="eyebrow">Đánh giá mới</p>
           <h2>Tải ảnh đồng phục</h2>
           <p className="muted">
-            Ảnh sẽ được nén dưới 1 MB tại trình duyệt rồi gửi đến backend để chạy phương pháp AI đã chọn.
+            Ảnh sẽ được nén dưới 1 MB tại trình duyệt rồi gửi đến backend để chạy chế độ đánh giá AI đã chọn.
           </p>
         </div>
 
@@ -356,7 +356,7 @@ export function UploadPage() {
               disabled={submitting}
             >
               <strong>Đánh giá nhanh không dùng SCHP/FLORENCE</strong>
-              <span>Chỉ chạy phương pháp được chọn bên dưới, dùng Pose + InsightFace + detector và bỏ qua SCHP/FLORENCE để giảm thời gian xử lý.</span>
+              <span>Chạy thêm 2 phương pháp mới bằng Pose + InsightFace + detector, chỉ kiểm tra thành phần đồng phục và bỏ qua SCHP/FLORENCE.</span>
             </button>
             <button
               className={`method-option ${evaluationMode === "advanced" ? "active" : ""}`}
@@ -369,20 +369,33 @@ export function UploadPage() {
             </button>
           </div>
 
-          <div className="method-selector" aria-label="Chọn phương pháp đánh giá">
-            {ADVANCED_METHODS.map((method) => (
-              <button
-                className={`method-option ${selectedMethod === method.key ? "active" : ""}`}
-                type="button"
-                key={method.key}
-                onClick={() => setSelectedMethod(method.key)}
-                disabled={submitting}
-              >
-                <strong>{method.label}</strong>
-                <span>{methodDescription(method.key, evaluationMode, method.description)}</span>
-              </button>
-            ))}
-          </div>
+          {evaluationMode === "lightweight" ? (
+            <div className="lightweight-method-summary">
+              <div>
+                <strong>Phương pháp 1: Pose + InsightFace + Grounding DINO</strong>
+                <span>YOLOv8 Pose chọn học sinh, InsightFace xác thực/nhận diện, Grounding DINO phát hiện thành phần đồng phục.</span>
+              </div>
+              <div>
+                <strong>Phương pháp 2: Pose + InsightFace + YOLOv8 đồng phục</strong>
+                <span>YOLOv8 Pose chọn học sinh, InsightFace xác thực/nhận diện, model YOLOv8 đồng phục phát hiện thành phần bắt buộc.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="method-selector" aria-label="Chọn phương pháp đánh giá v2 đầy đủ">
+              {ADVANCED_METHODS.map((method) => (
+                <button
+                  className={`method-option ${selectedMethod === method.key ? "active" : ""}`}
+                  type="button"
+                  key={method.key}
+                  onClick={() => setSelectedMethod(method.key)}
+                  disabled={submitting}
+                >
+                  <strong>{method.label}</strong>
+                  <span>{method.description}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="capture-mode-grid" aria-label="Chọn nguồn ảnh">
             <label className={`capture-source ${imageSource === "file" ? "active" : ""}`}>
@@ -498,16 +511,6 @@ export function UploadPage() {
       </section>
     </div>
   );
-}
-
-function methodDescription(method: AdvancedEvaluationMethod, mode: EvaluationMode, fallback: string) {
-  if (mode === "advanced") {
-    return fallback;
-  }
-  if (method === "GROUNDING_DINO_V2") {
-    return "Chạy Pose + InsightFace + Grounding DINO, không gọi YOLOv8 đồng phục, SCHP hoặc Florence-2.";
-  }
-  return "Chạy Pose + InsightFace + YOLOv8 đồng phục, không gọi Grounding DINO, SCHP hoặc Florence-2.";
 }
 
 async function requestStreamForMode(mode: CameraFacingMode, devices: MediaDeviceInfo[]) {

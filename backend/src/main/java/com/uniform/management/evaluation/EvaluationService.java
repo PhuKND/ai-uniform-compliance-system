@@ -216,6 +216,10 @@ public class EvaluationService {
 
     @Transactional
     public EvaluationCompareResponse lightweight(MultipartFile image, String studentCode, String selectedMethod) {
+        if (selectedMethod == null || selectedMethod.isBlank()) {
+            return lightweightCompare(image, studentCode);
+        }
+
         UserAccount admin = SecurityUtils.currentUser();
         Student requestedStudent = resolveRequestedStudent(studentCode);
         String faceMode = requestedStudent == null ? "identify" : "verify";
@@ -249,6 +253,65 @@ public class EvaluationService {
             setMethodProcessedImageUrl(run, method, managedImageUrl(imageImport.image()));
         }
         run.setRawAiResponseJson(toJson(aiResponse));
+        run.setCreatedBy(admin);
+        evaluationRunRepository.save(run);
+
+        return toCompareResponse(run, responseStudent);
+    }
+
+    private EvaluationCompareResponse lightweightCompare(MultipartFile image, String studentCode) {
+        UserAccount admin = SecurityUtils.currentUser();
+        Student requestedStudent = resolveRequestedStudent(studentCode);
+        String faceMode = requestedStudent == null ? "identify" : "verify";
+        JsonNode aiResponse = runLightweightEvaluation(image, requestedStudent, faceMode);
+        EvaluationMethod method1Type = EvaluationMethod.METHOD_1_POSE_INSIGHTFACE_GROUNDING_DINO;
+        EvaluationMethod method2Type = EvaluationMethod.METHOD_2_POSE_INSIGHTFACE_YOLOV8_UNIFORM;
+        JsonNode method1 = candidateOrError(aiResponse, method1Type);
+        JsonNode method2 = candidateOrError(aiResponse, method2Type);
+        EvaluationImage original = savePreAiImage(aiResponse, image);
+
+        String recognizedCode = extractor.recognizedStudentCode(aiResponse);
+        Student recognizedStudent = recognizedCode == null
+                ? null
+                : studentRepository.findByStudentCode(recognizedCode).orElse(null);
+        Student responseStudent = recognizedStudent != null ? recognizedStudent : requestedStudent;
+        Instant completedAt = Instant.now();
+        PreparedCandidate method1Prepared = prepareCandidate(responseStudent, method1, completedAt);
+        PreparedCandidate method2Prepared = prepareCandidate(responseStudent, method2, completedAt);
+
+        ImageImportOutcome method1Import = importProcessedImage(null, method1Type, method1Prepared.candidate());
+        ImageImportOutcome method2Import = importProcessedImage(null, method2Type, method2Prepared.candidate());
+        EvaluationImage method1Image = method1Import.image();
+        EvaluationImage method2Image = method2Import.image();
+
+        EvaluationRun run = new EvaluationRun();
+        run.setRequestedStudent(requestedStudent);
+        run.setRequestedStudentCode(requestedStudent == null ? null : requestedStudent.getStudentCode());
+        run.setRecognizedStudent(recognizedStudent);
+        run.setRecognizedStudentCode(recognizedCode);
+        run.setUniformAiEvaluationId(extractor.uniformAiEvaluationId(aiResponse));
+        run.setPreAiImagePath(extractor.preAiImagePath(aiResponse));
+        run.setPreAiImageUrl(uniformAiClient.resolveImageUrl(extractor.preAiImageUrl(aiResponse)));
+        run.setOriginalImage(original);
+        run.setMethod1Image(method1Image);
+        run.setMethod2Image(method2Image);
+        run.setMethod1Compliance(method1Prepared.complianceStatus());
+        run.setMethod2Compliance(method2Prepared.complianceStatus());
+        run.setMethod1ProcessedImagePath(extractor.processedImagePath(method1Prepared.candidate()));
+        run.setMethod1ProcessedImageUrl(managedImageUrl(method1Image));
+        run.setMethod2ProcessedImagePath(extractor.processedImagePath(method2Prepared.candidate()));
+        run.setMethod2ProcessedImageUrl(managedImageUrl(method2Image));
+        run.setRawMethod1Json(toJson(method1Prepared.candidate()));
+        run.setMethod1ScheduleSnapshotJson(scheduleSnapshotJson(method1Prepared.candidate()));
+        run.setRawMethod2Json(toJson(method2Prepared.candidate()));
+        run.setMethod2ScheduleSnapshotJson(scheduleSnapshotJson(method2Prepared.candidate()));
+        run.setRawAiResponseJson(toJson(aiResponse));
+        run.setMethod1Status(EvaluationProcessingStatus.COMPLETED);
+        run.setMethod1Error(method1Import.error());
+        run.setMethod1CompletedAt(completedAt);
+        run.setMethod2Status(EvaluationProcessingStatus.COMPLETED);
+        run.setMethod2Error(method2Import.error());
+        run.setMethod2CompletedAt(completedAt);
         run.setCreatedBy(admin);
         evaluationRunRepository.save(run);
 
@@ -422,6 +485,22 @@ public class EvaluationService {
         }
     }
 
+    private JsonNode runLightweightEvaluation(MultipartFile image, Student requestedStudent, String faceMode) {
+        try {
+            return uniformAiClient.evaluateLightweight(
+                    image,
+                    requestedStudent == null ? null : requestedStudent.getFaceDataId(),
+                    faceMode,
+                    null
+            );
+        } catch (Exception ex) {
+            ObjectNode error = objectMapper.createObjectNode();
+            error.put("success", false);
+            error.put("message", "AI lightweight evaluation unavailable");
+            error.put("error", ex.getMessage());
+            return error;
+        }
+    }
     private JsonNode runLightweightEvaluation(
             MultipartFile image,
             Student requestedStudent,

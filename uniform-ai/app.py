@@ -1,4 +1,4 @@
-﻿import json
+import json
 import sys
 import logging
 from datetime import datetime, timezone
@@ -185,6 +185,20 @@ def lightweight_method_from_request(default: str | None = None) -> str:
         or request.args.get("method")
         or default
     )
+
+
+def optional_lightweight_method_from_request() -> str | None:
+    raw = (
+        request.form.get("uniform_method")
+        or request.form.get("selected_method")
+        or request.form.get("method")
+        or request.args.get("uniform_method")
+        or request.args.get("selected_method")
+        or request.args.get("method")
+    )
+    if raw is None or not str(raw).strip():
+        return None
+    return normalize_lightweight_method(raw)
 
 
 @app.errorhandler(FaceApiError)
@@ -1397,31 +1411,36 @@ def run_lightweight_uniform_evaluation(
     pose_result: dict | None = None,
     selected_method: str | None = None,
 ) -> dict:
-    method = normalize_lightweight_method(selected_method)
+    selected = normalize_lightweight_method(selected_method) if selected_method else None
+    methods = [selected] if selected else [METHOD_LIGHTWEIGHT_GROUNDING_DINO, METHOD_LIGHTWEIGHT_YOLOV8]
     image = load_rgb_image(pre_ai_image_path)
     image_shape = image_shape_from_pil(image)
     pose_notes: list[str] = []
     if pose_result is None:
         pose_result, pose_notes = estimate_pose_for_image(pre_ai_image_path, image_shape)
 
+    logger.info("lightweight evaluation: skipping SCHP")
+    logger.info("lightweight evaluation: skipping Florence-2")
     logger.info(
-        "lightweight_single_evaluation_start method=%s image=%s pose_selected=%s schp=skipped florence2=skipped grounding_dino=%s yolov8_uniform=%s",
-        method,
+        "lightweight_%s_evaluation_start methods=%s image=%s pose_selected=%s schp=skipped florence2=skipped",
+        "single" if selected else "dual",
+        methods,
         pre_ai_image_path,
         bool(pose_result.get("selected")) if pose_result else False,
-        "run" if is_grounding_method(method) else "skipped",
-        "run" if is_yolov8_method(method) else "skipped",
     )
-    candidate = run_lightweight_uniform_method_candidate(
-        method,
-        pre_ai_image_path,
-        pre_ai_info,
-        pose_result,
-        yolo_confidence=yolo_confidence,
-        yolo_image_size=yolo_image_size,
-    )
-    candidates = [candidate]
-    default_candidate = candidate
+
+    candidates = [
+        run_lightweight_uniform_method_candidate(
+            method,
+            pre_ai_image_path,
+            pre_ai_info,
+            pose_result,
+            yolo_confidence=yolo_confidence,
+            yolo_image_size=yolo_image_size,
+        )
+        for method in methods
+    ]
+    default_candidate = next((candidate for candidate in candidates if candidate["method"] == METHOD_LIGHTWEIGHT_YOLOV8), candidates[0])
     legacy_default = default_candidate.get("legacy_result", {})
 
     evaluation_id = f"uniform_lightweight_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}_{uuid4().hex[:8]}"
@@ -1440,9 +1459,12 @@ def run_lightweight_uniform_evaluation(
             "uses_florence2": False,
             "uses_pose": True,
             "uses_insightface": True,
-            "methods": [method],
-            "selected_method": method,
-            "component_detector": "grounding_dino_v2" if is_grounding_method(method) else "yolov8_v2",
+            "methods": methods,
+            "selected_method": selected,
+            "component_detectors": [
+                "grounding_dino_v2" if is_grounding_method(method) else "yolov8_v2"
+                for method in methods
+            ],
         },
         "lightweight_no_schp_no_florence": True,
         "skipped_models": {
@@ -1457,14 +1479,15 @@ def run_lightweight_uniform_evaluation(
             "compatible_endpoint": "/api/admin/select-uniform-evaluation",
             "input": {
                 "evaluation_id": evaluation_id,
-                "selected_method": method,
+                "selected_method": selected or methods,
             },
         },
     }
-    if is_grounding_method(method):
-        payload["method_1_result"] = candidate
-    else:
-        payload["method_2_result"] = candidate
+    for candidate in candidates:
+        if is_grounding_method(candidate["method"]):
+            payload["method_1_result"] = candidate
+        elif is_yolov8_method(candidate["method"]):
+            payload["method_2_result"] = candidate
 
     for key, value in legacy_default.items():
         if key not in payload:
@@ -1476,12 +1499,11 @@ def run_lightweight_uniform_evaluation(
     record_path = uniform_evaluation_repository.save_evaluation(payload)
     payload["record_path"] = str(record_path)
     logger.info(
-        "lightweight_single_evaluation_completed evaluation_id=%s method=%s image=%s schp=skipped florence2=skipped grounding_dino=%s yolov8_uniform=%s",
+        "lightweight_%s_evaluation_completed evaluation_id=%s methods=%s image=%s schp=skipped florence2=skipped",
+        "single" if selected else "dual",
         evaluation_id,
-        method,
+        methods,
         pre_ai_image_path,
-        "run" if is_grounding_method(method) else "skipped",
-        "run" if is_yolov8_method(method) else "skipped",
     )
     return payload
 
@@ -1968,7 +1990,7 @@ def evaluate_uniform_lightweight():
             pre_ai.to_dict(),
             yolo_confidence=request.form.get("confidence") or request.form.get("uniform_confidence"),
             yolo_image_size=request.form.get("image_size") or request.form.get("uniform_image_size"),
-            selected_method=lightweight_method_from_request(),
+            selected_method=optional_lightweight_method_from_request(),
         )
         return json_response(payload)
     except RuntimeError as exc:
@@ -2481,7 +2503,7 @@ def evaluate_student_lightweight():
         )
 
     try:
-        lightweight_method = lightweight_method_from_request()
+        lightweight_method = optional_lightweight_method_from_request()
     except ValueError as exc:
         return face_error_response(
             str(exc),
