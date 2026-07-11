@@ -6,7 +6,7 @@
 
 <br/>
 
-<img src="https://img.shields.io/badge/Graduation%20Thesis-9.3%2F10-success?style=for-the-badge" />
+
 <img src="https://img.shields.io/badge/AI-Computer%20Vision-blue?style=for-the-badge" />
 <img src="https://img.shields.io/badge/YOLOv8-Object%20Detection-orange?style=for-the-badge" />
 <img src="https://img.shields.io/badge/Spring%20Boot-Backend-brightgreen?style=for-the-badge" />
@@ -606,7 +606,7 @@ git push -u origin main
 | Major | Information Technology |
 | University | University of Science and Technology, The University of Danang |
 | Thesis | AI-based School Uniform Compliance Evaluation System |
-| Thesis Grade | 9.3 / 10 |
+
 
 ---
 
