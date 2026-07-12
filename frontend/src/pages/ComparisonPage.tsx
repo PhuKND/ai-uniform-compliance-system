@@ -1,12 +1,12 @@
 import { IconDeviceFloppy as Save, IconUserCheck as UserCheck } from "@tabler/icons-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { chooseOfficial, getCompareStatus } from "../api/evaluations";
 import { AuthenticatedImage } from "../components/AuthenticatedImage";
 import { MethodCard } from "../components/MethodCard";
 import { StatusBadge } from "../components/StatusBadge";
 import type { EvaluationCompareResponse, EvaluationHistory, MethodProcessingStatus, MethodResult } from "../types";
-import { formatDateTime } from "../utils/format";
+import { formatDateTime, methodLabel } from "../utils/format";
 import { finalScore } from "../utils/result";
 import { readLatestComparison, saveLatestComparison } from "./UploadPage";
 
@@ -42,6 +42,7 @@ export function ComparisonPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollingError, setPollingError] = useState<string | null>(null);
+  const activeRunIdRef = useRef<number | null>(initialResult?.runId ?? null);
 
   const applyComparisonUpdate = useCallback((next: EvaluationCompareResponse) => {
     setPollingError(null);
@@ -68,9 +69,29 @@ export function ComparisonPage() {
   }, []);
 
   useEffect(() => {
-    if (initialResult) {
-      applyComparisonUpdate(initialResult);
+    if (!initialResult) return;
+    if (activeRunIdRef.current !== initialResult.runId) {
+      const nextMethods = buildMethodMap(initialResult);
+      activeRunIdRef.current = initialResult.runId;
+      setComparison(initialResult);
+      setMethodsByKey(nextMethods);
+      setSelectedMethodKey(firstCompletedKey(nextMethods));
+      setStudentCode(
+        initialResult.recognizedStudentCode
+          ?? initialResult.requestedStudentCode
+          ?? initialResult.student?.studentCode
+          ?? "",
+      );
+      setAdminNote("");
+      setDeductionInputs({});
+      setSavedHistory(null);
+      setSaving(false);
+      setError(null);
+      setPollingError(null);
+      saveLatestComparison(initialResult);
+      return;
     }
+    applyComparisonUpdate(initialResult);
   }, [applyComparisonUpdate, initialResult]);
 
   const jobId = comparison?.jobId ?? comparison?.runId;
@@ -98,19 +119,24 @@ export function ComparisonPage() {
     const activeJobId = jobId;
     let cancelled = false;
     let timeoutId: number | undefined;
+    let consecutiveFailures = 0;
 
     async function poll() {
       try {
         const next = await getCompareStatus(activeJobId);
         if (cancelled) return;
+        consecutiveFailures = 0;
         applyComparisonUpdate(next);
         if (!isTerminalJobStatus(next.status)) {
           timeoutId = window.setTimeout(poll, POLL_INTERVAL_MS);
         }
       } catch (err) {
         if (cancelled) return;
+        consecutiveFailures += 1;
         setPollingError(err instanceof Error ? err.message : "Không thể cập nhật trạng thái AI.");
-        timeoutId = window.setTimeout(poll, POLL_INTERVAL_MS * 2);
+        if (consecutiveFailures < 5) {
+          timeoutId = window.setTimeout(poll, POLL_INTERVAL_MS * 2);
+        }
       }
     }
 
@@ -134,6 +160,10 @@ export function ComparisonPage() {
   }
 
   const visibleMethods = visibleMethodList(methodsByKey, comparison);
+  const singleMethodResult = visibleMethods.length === 1;
+  const singleMethodName = singleMethodResult
+    ? visibleMethods[0].methodDisplayName || methodLabel(visibleMethods[0].method)
+    : null;
   const runId = comparison.runId;
 
   async function submitOfficial(event: FormEvent) {
@@ -173,7 +203,7 @@ export function ComparisonPage() {
       <div className="comparison-summary">
         <div>
           <p className="eyebrow">Run #{comparison.runId}</p>
-          <h2>So sánh hai phương pháp AI</h2>
+          <h2>{singleMethodResult ? `Kết quả ${singleMethodName}` : "So sánh hai phương pháp AI"}</h2>
           <p className="muted">Tạo lúc {formatDateTime(comparison.createdAt)} · {jobStatusLabel(comparison.status)}</p>
         </div>
         <div className="summary-student">

@@ -46,9 +46,11 @@ export function runAdvancedEvaluation(image: File, method: AdvancedEvaluationMet
   );
 }
 
-export function runLightweightEvaluation(image: File, studentCode?: string) {
+export function runLightweightEvaluation(image: File, method: AdvancedEvaluationMethod, studentCode?: string) {
   const formData = new FormData();
   formData.append("image", image);
+  formData.append("selectedMethod", method);
+  formData.append("uniformMethod", method);
   if (studentCode?.trim()) {
     formData.append("studentCode", studentCode.trim());
   }

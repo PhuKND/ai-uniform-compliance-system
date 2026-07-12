@@ -25,6 +25,7 @@ import com.uniform.management.student.dto.StudentResponse;
 import com.uniform.management.uniformschedule.ScheduleComplianceResult;
 import com.uniform.management.uniformschedule.UniformRequirementScheduleService;
 import com.uniform.management.uniformai.UniformAiClient;
+import com.uniform.management.uniformai.UniformAiException;
 import com.uniform.management.user.UserAccount;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -216,16 +217,12 @@ public class EvaluationService {
 
     @Transactional
     public EvaluationCompareResponse lightweight(MultipartFile image, String studentCode, String selectedMethod) {
-        if (selectedMethod == null || selectedMethod.isBlank()) {
-            return lightweightCompare(image, studentCode);
-        }
-
+        EvaluationMethod method = lightweightMethodFromSelection(selectedMethod);
         UserAccount admin = SecurityUtils.currentUser();
         Student requestedStudent = resolveRequestedStudent(studentCode);
         String faceMode = requestedStudent == null ? "identify" : "verify";
-        EvaluationMethod method = lightweightMethodFromSelection(selectedMethod);
         JsonNode aiResponse = runLightweightEvaluation(image, requestedStudent, faceMode, method);
-        JsonNode candidate = candidateOrError(aiResponse, method);
+        JsonNode candidate = requiredLightweightCandidate(aiResponse, method);
         EvaluationImage original = savePreAiImage(aiResponse, image);
 
         String recognizedCode = extractor.recognizedStudentCode(aiResponse);
@@ -253,65 +250,6 @@ public class EvaluationService {
             setMethodProcessedImageUrl(run, method, managedImageUrl(imageImport.image()));
         }
         run.setRawAiResponseJson(toJson(aiResponse));
-        run.setCreatedBy(admin);
-        evaluationRunRepository.save(run);
-
-        return toCompareResponse(run, responseStudent);
-    }
-
-    private EvaluationCompareResponse lightweightCompare(MultipartFile image, String studentCode) {
-        UserAccount admin = SecurityUtils.currentUser();
-        Student requestedStudent = resolveRequestedStudent(studentCode);
-        String faceMode = requestedStudent == null ? "identify" : "verify";
-        JsonNode aiResponse = runLightweightEvaluation(image, requestedStudent, faceMode);
-        EvaluationMethod method1Type = EvaluationMethod.METHOD_1_POSE_INSIGHTFACE_GROUNDING_DINO;
-        EvaluationMethod method2Type = EvaluationMethod.METHOD_2_POSE_INSIGHTFACE_YOLOV8_UNIFORM;
-        JsonNode method1 = candidateOrError(aiResponse, method1Type);
-        JsonNode method2 = candidateOrError(aiResponse, method2Type);
-        EvaluationImage original = savePreAiImage(aiResponse, image);
-
-        String recognizedCode = extractor.recognizedStudentCode(aiResponse);
-        Student recognizedStudent = recognizedCode == null
-                ? null
-                : studentRepository.findByStudentCode(recognizedCode).orElse(null);
-        Student responseStudent = recognizedStudent != null ? recognizedStudent : requestedStudent;
-        Instant completedAt = Instant.now();
-        PreparedCandidate method1Prepared = prepareCandidate(responseStudent, method1, completedAt);
-        PreparedCandidate method2Prepared = prepareCandidate(responseStudent, method2, completedAt);
-
-        ImageImportOutcome method1Import = importProcessedImage(null, method1Type, method1Prepared.candidate());
-        ImageImportOutcome method2Import = importProcessedImage(null, method2Type, method2Prepared.candidate());
-        EvaluationImage method1Image = method1Import.image();
-        EvaluationImage method2Image = method2Import.image();
-
-        EvaluationRun run = new EvaluationRun();
-        run.setRequestedStudent(requestedStudent);
-        run.setRequestedStudentCode(requestedStudent == null ? null : requestedStudent.getStudentCode());
-        run.setRecognizedStudent(recognizedStudent);
-        run.setRecognizedStudentCode(recognizedCode);
-        run.setUniformAiEvaluationId(extractor.uniformAiEvaluationId(aiResponse));
-        run.setPreAiImagePath(extractor.preAiImagePath(aiResponse));
-        run.setPreAiImageUrl(uniformAiClient.resolveImageUrl(extractor.preAiImageUrl(aiResponse)));
-        run.setOriginalImage(original);
-        run.setMethod1Image(method1Image);
-        run.setMethod2Image(method2Image);
-        run.setMethod1Compliance(method1Prepared.complianceStatus());
-        run.setMethod2Compliance(method2Prepared.complianceStatus());
-        run.setMethod1ProcessedImagePath(extractor.processedImagePath(method1Prepared.candidate()));
-        run.setMethod1ProcessedImageUrl(managedImageUrl(method1Image));
-        run.setMethod2ProcessedImagePath(extractor.processedImagePath(method2Prepared.candidate()));
-        run.setMethod2ProcessedImageUrl(managedImageUrl(method2Image));
-        run.setRawMethod1Json(toJson(method1Prepared.candidate()));
-        run.setMethod1ScheduleSnapshotJson(scheduleSnapshotJson(method1Prepared.candidate()));
-        run.setRawMethod2Json(toJson(method2Prepared.candidate()));
-        run.setMethod2ScheduleSnapshotJson(scheduleSnapshotJson(method2Prepared.candidate()));
-        run.setRawAiResponseJson(toJson(aiResponse));
-        run.setMethod1Status(EvaluationProcessingStatus.COMPLETED);
-        run.setMethod1Error(method1Import.error());
-        run.setMethod1CompletedAt(completedAt);
-        run.setMethod2Status(EvaluationProcessingStatus.COMPLETED);
-        run.setMethod2Error(method2Import.error());
-        run.setMethod2CompletedAt(completedAt);
         run.setCreatedBy(admin);
         evaluationRunRepository.save(run);
 
@@ -358,7 +296,10 @@ public class EvaluationService {
             throw new BadRequestException("L\u1ea7n ch\u1ea1y n\u00e0y \u0111\u00e3 \u0111\u01b0\u1ee3c l\u01b0u k\u1ebft qu\u1ea3 ch\u00ednh th\u1ee9c");
         }
 
-        EvaluationMethod selectedMethod = parseSelectedMethod(request.selectedMethod());
+        EvaluationMethod selectedMethod = canonicalRunMethod(
+                run,
+                parseSelectedMethod(request.selectedMethod())
+        );
         if (!methodStatus(run, selectedMethod).isTerminal()
                 || methodStatus(run, selectedMethod) != EvaluationProcessingStatus.COMPLETED) {
             throw new BadRequestException("Ph\u01b0\u01a1ng ph\u00e1p \u0111\u00e3 ch\u1ecdn ch\u01b0a ho\u00e0n t\u1ea5t th\u00e0nh c\u00f4ng");
@@ -485,22 +426,6 @@ public class EvaluationService {
         }
     }
 
-    private JsonNode runLightweightEvaluation(MultipartFile image, Student requestedStudent, String faceMode) {
-        try {
-            return uniformAiClient.evaluateLightweight(
-                    image,
-                    requestedStudent == null ? null : requestedStudent.getFaceDataId(),
-                    faceMode,
-                    null
-            );
-        } catch (Exception ex) {
-            ObjectNode error = objectMapper.createObjectNode();
-            error.put("success", false);
-            error.put("message", "AI lightweight evaluation unavailable");
-            error.put("error", ex.getMessage());
-            return error;
-        }
-    }
     private JsonNode runLightweightEvaluation(
             MultipartFile image,
             Student requestedStudent,
@@ -515,28 +440,55 @@ public class EvaluationService {
                     method.getCandidateKey()
             );
         } catch (Exception ex) {
-            ObjectNode error = objectMapper.createObjectNode();
-            error.put("success", false);
-            error.put("message", "AI lightweight evaluation unavailable");
-            error.put("error", ex.getMessage());
-            error.put("evaluation_method", method.getCandidateKey());
-            return error;
+            throw new UniformAiException(
+                    "Không thể chạy đánh giá nhanh bằng " + method.getDisplayName()
+                            + ". Vui lòng kiểm tra dịch vụ AI và thử lại.",
+                    ex
+            );
         }
+    }
+
+    private JsonNode requiredLightweightCandidate(JsonNode aiResponse, EvaluationMethod method) {
+        if (aiResponse == null || !aiResponse.path("success").asBoolean(true)) {
+            throw new UniformAiException(
+                    "Dịch vụ AI không thể hoàn tất đánh giá nhanh bằng " + method.getDisplayName()
+            );
+        }
+        JsonNode candidate = extractor.candidate(aiResponse, method);
+        if (candidate == null || candidate.isMissingNode() || candidate.isNull()
+                || (candidate.path("available").isBoolean() && !candidate.path("available").asBoolean())) {
+            throw new UniformAiException(
+                    "Dịch vụ AI không trả về kết quả cho phương pháp " + method.getDisplayName()
+            );
+        }
+        return candidate;
     }
 
     private EvaluationMethod lightweightMethodFromSelection(String selectedMethod) {
         if (selectedMethod == null || selectedMethod.isBlank()) {
-            return EvaluationMethod.METHOD_2_POSE_INSIGHTFACE_YOLOV8_UNIFORM;
+            throw new BadRequestException(
+                    "Vui lòng chọn phương pháp đánh giá nhanh: YOLOV8_V2 hoặc GROUNDING_DINO_V2"
+            );
         }
-        EvaluationMethod method;
-        try {
-            method = EvaluationMethod.fromSelection(selectedMethod);
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException(ex.getMessage());
-        }
-        return method.isMethod1Slot()
-                ? EvaluationMethod.METHOD_1_POSE_INSIGHTFACE_GROUNDING_DINO
-                : EvaluationMethod.METHOD_2_POSE_INSIGHTFACE_YOLOV8_UNIFORM;
+        String normalized = selectedMethod.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "GROUNDING_DINO_V2", "LIGHTWEIGHT_GROUNDING_DINO",
+                    "METHOD_1_POSE_INSIGHTFACE_GROUNDING_DINO", "METHOD_1",
+                    "LIGHTWEIGHT_METHOD_1", "GROUNDING_DINO", "GROUNDING_DINO_LIGHTWEIGHT",
+                    "POSE_INSIGHTFACE_GROUNDING_DINO", "NO_SCHP_GROUNDING_DINO",
+                    "NO_FLORENCE_GROUNDING_DINO" ->
+                    EvaluationMethod.METHOD_1_POSE_INSIGHTFACE_GROUNDING_DINO;
+            case "YOLOV8_V2", "LIGHTWEIGHT_YOLOV8_UNIFORM",
+                    "METHOD_2_POSE_INSIGHTFACE_YOLOV8_UNIFORM", "METHOD_2",
+                    "LIGHTWEIGHT_METHOD_2", "YOLOV8", "LIGHTWEIGHT_YOLOV8",
+                    "YOLOV8_LIGHTWEIGHT", "POSE_INSIGHTFACE_YOLOV8",
+                    "POSE_INSIGHTFACE_YOLOV8_UNIFORM", "NO_SCHP_YOLOV8",
+                    "NO_FLORENCE_YOLOV8" ->
+                    EvaluationMethod.METHOD_2_POSE_INSIGHTFACE_YOLOV8_UNIFORM;
+            default -> throw new BadRequestException(
+                    "Phương pháp đánh giá nhanh không hợp lệ. Chỉ chấp nhận YOLOV8_V2 hoặc GROUNDING_DINO_V2"
+            );
+        };
     }
 
     private Student resolveRequestedStudent(String studentCode) {
@@ -976,8 +928,20 @@ public class EvaluationService {
                 : EvaluationMethod.METHOD_2_YOLOV8_SCHP_FLORENCE;
     }
 
+    private EvaluationMethod canonicalRunMethod(EvaluationRun run, EvaluationMethod requestedMethod) {
+        for (EvaluationMethod actualMethod : aiCandidateMethods(run)) {
+            if (actualMethod.isMethod1Slot() == requestedMethod.isMethod1Slot()) {
+                return actualMethod;
+            }
+        }
+        return requestedMethod;
+    }
+
     private List<EvaluationMethod> aiCandidateMethods(EvaluationRun run) {
         JsonNode raw = readJsonOrNull(run.getRawAiResponseJson());
+        if (raw == null || raw.isNull() || raw.isMissingNode()) {
+            return List.of();
+        }
         JsonNode uniform = extractor.uniformPayload(raw);
         List<EvaluationMethod> methods = new ArrayList<>();
         appendCandidateMethods(methods, raw.path("candidate_methods"));

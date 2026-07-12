@@ -137,7 +137,11 @@ def is_yolov8_method(method: str) -> bool:
 def normalize_lightweight_method(value: str | None) -> str:
     raw = str(value or "").strip()
     if not raw:
-        return METHOD_LIGHTWEIGHT_YOLOV8
+        raise ValueError(
+            "uniform_method is required and must be one of: "
+            "LIGHTWEIGHT_GROUNDING_DINO, LIGHTWEIGHT_YOLOV8_UNIFORM, "
+            "GROUNDING_DINO_V2, YOLOV8_V2."
+        )
     normalized = raw.lower()
     grounding_aliases = {
         METHOD_LIGHTWEIGHT_GROUNDING_DINO.lower(),
@@ -176,7 +180,7 @@ def normalize_lightweight_method(value: str | None) -> str:
 
 
 def lightweight_method_from_request(default: str | None = None) -> str:
-    return normalize_lightweight_method(
+    raw = (
         request.form.get("uniform_method")
         or request.form.get("selected_method")
         or request.form.get("method")
@@ -185,19 +189,12 @@ def lightweight_method_from_request(default: str | None = None) -> str:
         or request.args.get("method")
         or default
     )
-
-
-def optional_lightweight_method_from_request() -> str | None:
-    raw = (
-        request.form.get("uniform_method")
-        or request.form.get("selected_method")
-        or request.form.get("method")
-        or request.args.get("uniform_method")
-        or request.args.get("selected_method")
-        or request.args.get("method")
-    )
     if raw is None or not str(raw).strip():
-        return None
+        raise ValueError(
+            "uniform_method is required and must be one of: "
+            "LIGHTWEIGHT_GROUNDING_DINO, LIGHTWEIGHT_YOLOV8_UNIFORM, "
+            "GROUNDING_DINO_V2, YOLOV8_V2."
+        )
     return normalize_lightweight_method(raw)
 
 
@@ -1072,6 +1069,20 @@ def _lightweight_neutral_appearance() -> dict:
     }
 
 
+def _lightweight_module_trace(method: str, insightface_executed: bool) -> tuple[list[str], list[str]]:
+    detector = "GROUNDING_DINO" if is_grounding_method(method) else "YOLOV8_UNIFORM"
+    unselected_detector = "YOLOV8_UNIFORM" if is_grounding_method(method) else "GROUNDING_DINO"
+    executed = ["POSE"]
+    skipped: list[str] = []
+    if insightface_executed:
+        executed.append("INSIGHTFACE")
+    else:
+        skipped.append("INSIGHTFACE")
+    executed.append(detector)
+    skipped.extend([unselected_detector, "SCHP", "FLORENCE_2"])
+    return executed, skipped
+
+
 def _lightweight_component_payload(
     method: str,
     image_path: Path,
@@ -1082,6 +1093,7 @@ def _lightweight_component_payload(
     grounding_payload: dict,
     yolov8_payload: dict,
     notes: list[str],
+    insightface_executed: bool = False,
 ) -> dict:
     skipped = _lightweight_skipped_models()
     appearance = _lightweight_neutral_appearance()
@@ -1102,7 +1114,7 @@ def _lightweight_component_payload(
         "uses_schp": False,
         "uses_florence2": False,
         "uses_pose": True,
-        "uses_insightface": True,
+        "uses_insightface": bool(insightface_executed),
         "component_detector": "grounding_dino_v2" if is_grounding_method(method) else "yolov8_v2",
     }
     payload["lightweight_no_schp_no_florence"] = True
@@ -1153,6 +1165,7 @@ def run_lightweight_uniform_method_candidate(
     pose_result: dict | None,
     yolo_confidence=None,
     yolo_image_size=None,
+    insightface_executed: bool = False,
 ) -> dict:
     timestamp = utc_now_iso()
     prefix = METHOD_FILENAME_PREFIXES.get(method, method)
@@ -1259,7 +1272,7 @@ def run_lightweight_uniform_method_candidate(
             notes.append("Method 1 used pose-validated Grounding DINO detections.")
     except Exception as exc:
         logger.exception("lightweight_uniform_evaluation_failed method=%s image=%s", method, image_path)
-        return _unavailable_method_candidate(method, image_path, pose_result, pre_ai_info, str(exc), timestamp)
+        raise RuntimeError(f"LIGHTWEIGHT_DETECTOR_FAILED: {method}: {exc}") from exc
     finally:
         if is_grounding_method(method):
             grounding_service.release()
@@ -1274,6 +1287,7 @@ def run_lightweight_uniform_method_candidate(
         grounding_payload=grounding_payload,
         yolov8_payload=yolov8_payload,
         notes=notes,
+        insightface_executed=insightface_executed,
     )
     candidate = _candidate_from_legacy_payload(method, legacy_payload, image_path, pre_ai_info, timestamp)
     candidate["pipeline"] = legacy_payload["pipeline"]
@@ -1410,38 +1424,54 @@ def run_lightweight_uniform_evaluation(
     yolo_image_size=None,
     pose_result: dict | None = None,
     selected_method: str | None = None,
+    insightface_executed: bool = False,
 ) -> dict:
-    selected = normalize_lightweight_method(selected_method) if selected_method else None
-    methods = [selected] if selected else [METHOD_LIGHTWEIGHT_GROUNDING_DINO, METHOD_LIGHTWEIGHT_YOLOV8]
+    method = normalize_lightweight_method(selected_method)
     image = load_rgb_image(pre_ai_image_path)
     image_shape = image_shape_from_pil(image)
     pose_notes: list[str] = []
     if pose_result is None:
         pose_result, pose_notes = estimate_pose_for_image(pre_ai_image_path, image_shape)
 
-    logger.info("lightweight evaluation: skipping SCHP")
-    logger.info("lightweight evaluation: skipping Florence-2")
+    executed_modules, skipped_modules = _lightweight_module_trace(method, insightface_executed)
     logger.info(
-        "lightweight_%s_evaluation_start methods=%s image=%s pose_selected=%s schp=skipped florence2=skipped",
-        "single" if selected else "dual",
-        methods,
+        "lightweight_method=%s executed=%s skipped=%s processed_image_output_path=%s status=started "
+        "image=%s pose_selected=%s",
+        method,
+        ",".join(executed_modules),
+        ",".join(skipped_modules),
+        None,
         pre_ai_image_path,
         bool(pose_result.get("selected")) if pose_result else False,
     )
 
-    candidates = [
-        run_lightweight_uniform_method_candidate(
+    try:
+        candidate = run_lightweight_uniform_method_candidate(
             method,
             pre_ai_image_path,
             pre_ai_info,
             pose_result,
             yolo_confidence=yolo_confidence,
             yolo_image_size=yolo_image_size,
+            insightface_executed=insightface_executed,
         )
-        for method in methods
-    ]
-    default_candidate = next((candidate for candidate in candidates if candidate["method"] == METHOD_LIGHTWEIGHT_YOLOV8), candidates[0])
+    except Exception as exc:
+        logger.exception(
+            "lightweight_method=%s executed=%s skipped=%s processed_image_output_path=%s status=failed "
+            "image=%s error=%s",
+            method,
+            ",".join(executed_modules),
+            ",".join(skipped_modules),
+            None,
+            pre_ai_image_path,
+            exc,
+        )
+        raise
+
+    candidates = [candidate]
+    default_candidate = candidate
     legacy_default = default_candidate.get("legacy_result", {})
+    component_detector = "grounding_dino_v2" if is_grounding_method(method) else "yolov8_v2"
 
     evaluation_id = f"uniform_lightweight_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}_{uuid4().hex[:8]}"
     payload = {
@@ -1458,13 +1488,11 @@ def run_lightweight_uniform_evaluation(
             "uses_schp": False,
             "uses_florence2": False,
             "uses_pose": True,
-            "uses_insightface": True,
-            "methods": methods,
-            "selected_method": selected,
-            "component_detectors": [
-                "grounding_dino_v2" if is_grounding_method(method) else "yolov8_v2"
-                for method in methods
-            ],
+            "uses_insightface": bool(insightface_executed),
+            "methods": [method],
+            "selected_method": method,
+            "component_detector": component_detector,
+            "component_detectors": [component_detector],
         },
         "lightweight_no_schp_no_florence": True,
         "skipped_models": {
@@ -1479,15 +1507,14 @@ def run_lightweight_uniform_evaluation(
             "compatible_endpoint": "/api/admin/select-uniform-evaluation",
             "input": {
                 "evaluation_id": evaluation_id,
-                "selected_method": selected or methods,
+                "selected_method": method,
             },
         },
     }
-    for candidate in candidates:
-        if is_grounding_method(candidate["method"]):
-            payload["method_1_result"] = candidate
-        elif is_yolov8_method(candidate["method"]):
-            payload["method_2_result"] = candidate
+    if is_grounding_method(method):
+        payload["method_1_result"] = candidate
+    else:
+        payload["method_2_result"] = candidate
 
     for key, value in legacy_default.items():
         if key not in payload:
@@ -1496,13 +1523,30 @@ def run_lightweight_uniform_evaluation(
     payload["final_annotated_image_url"] = default_candidate.get("processed_image_url")
     payload["final_annotated_image_path"] = default_candidate.get("processed_image")
 
-    record_path = uniform_evaluation_repository.save_evaluation(payload)
+    try:
+        record_path = uniform_evaluation_repository.save_evaluation(payload)
+    except Exception as exc:
+        logger.exception(
+            "lightweight_method=%s executed=%s skipped=%s processed_image_output_path=%s status=failed "
+            "evaluation_id=%s image=%s error=%s",
+            method,
+            ",".join(executed_modules),
+            ",".join(skipped_modules),
+            candidate.get("processed_image"),
+            evaluation_id,
+            pre_ai_image_path,
+            exc,
+        )
+        raise
     payload["record_path"] = str(record_path)
     logger.info(
-        "lightweight_%s_evaluation_completed evaluation_id=%s methods=%s image=%s schp=skipped florence2=skipped",
-        "single" if selected else "dual",
+        "lightweight_method=%s executed=%s skipped=%s processed_image_output_path=%s status=completed "
+        "evaluation_id=%s image=%s",
+        method,
+        ",".join(executed_modules),
+        ",".join(skipped_modules),
+        candidate.get("processed_image"),
         evaluation_id,
-        methods,
         pre_ai_image_path,
     )
     return payload
@@ -1978,6 +2022,7 @@ def evaluate_uniform_lightweight():
         return validation_error
 
     try:
+        lightweight_method = lightweight_method_from_request()
         assert upload is not None
         pre_ai = store_pre_ai_upload(
             upload,
@@ -1990,7 +2035,8 @@ def evaluate_uniform_lightweight():
             pre_ai.to_dict(),
             yolo_confidence=request.form.get("confidence") or request.form.get("uniform_confidence"),
             yolo_image_size=request.form.get("image_size") or request.form.get("uniform_image_size"),
-            selected_method=optional_lightweight_method_from_request(),
+            selected_method=lightweight_method,
+            insightface_executed=False,
         )
         return json_response(payload)
     except RuntimeError as exc:
@@ -2503,7 +2549,7 @@ def evaluate_student_lightweight():
         )
 
     try:
-        lightweight_method = optional_lightweight_method_from_request()
+        lightweight_method = lightweight_method_from_request()
     except ValueError as exc:
         return face_error_response(
             str(exc),
@@ -2536,6 +2582,7 @@ def evaluate_student_lightweight():
             yolo_image_size=request.form.get("uniform_image_size") or request.form.get("image_size"),
             pose_result=pose_result,
             selected_method=lightweight_method,
+            insightface_executed=bool(face_payload.get("ran")),
         )
         uniform_payload["pose_notes"] = pose_notes
 

@@ -21,7 +21,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -54,10 +53,10 @@ public class SecurityConfig {
                         // .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         // .anyRequest().authenticated()
 
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
 
                 )
@@ -84,43 +83,24 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
-    // @Bean
-    // CorsConfigurationSource corsConfigurationSource() {
-    // CorsConfiguration configuration = new CorsConfiguration();
-    // List<String> origins = Arrays.stream(allowedOrigins.split(","))
-    // .map(String::trim)
-    // .filter(value -> !value.isBlank())
-    // .toList();
-    // configuration.setAllowedOrigins(origins);
-    // configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH",
-    // "DELETE", "OPTIONS"));
-    // configuration.setAllowedHeaders(List.of("*"));
-    // configuration.setAllowCredentials(true);
-    // UrlBasedCorsConfigurationSource source = new
-    // UrlBasedCorsConfigurationSource();
-    // source.registerCorsConfiguration("/**", configuration);
-    // return source;
-    // }
-
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        List<String> origins = List.of(allowedOrigins.split(",")).stream()
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .distinct()
+                .toList();
+        if (origins.isEmpty()) {
+            throw new IllegalStateException("app.cors.allowed-origins must contain at least one origin");
+        }
 
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "https://uniform.pawcarestore.online",
-                "https://pawcarestore.online",
-                "https://www.pawcarestore.online",
-                "https://*.pawcarestore.online",
-                "https://*.trycloudflare.com"));
-
-        configuration.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowedOrigins(origins);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
+        // Authentication uses a bearer token, not cross-origin cookies.
+        configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
