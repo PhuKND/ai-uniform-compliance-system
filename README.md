@@ -29,8 +29,6 @@ Repository gồm ba dịch vụ: frontend React/Vite, backend Spring Boot và d�
 - [API quan trọng](#api-quan-trọng)
 - [Build và test](#build-và-test)
 - [Lưu trữ và tương thích](#lưu-trữ-kết-quả-và-tính-tương-thích)
-- [Khắc phục sự cố](#khắc-phục-sự-cố)
-- [Bảo mật và quyền riêng tư](#bảo-mật-và-quyền-riêng-tư)
 
 ## Chức năng chính
 
@@ -406,49 +404,3 @@ Các file <code>test_grounding.py</code>, <code>test_florence.py</code>, <code>t
 - Bản ghi cũ, enum cũ và các route frontend cũ tiếp tục được đọc.
 - Không có migration database mới cho việc tách lightweight method.
 
-## Khắc phục sự cố
-
-### Backend không kết nối MySQL
-
-- Kiểm tra dịch vụ MySQL đang chạy.
-- Kiểm tra cổng thực tế. Nếu MySQL dùng cổng 3306, cập nhật <code>DB_URL</code> thay vì giữ mặc định 3307.
-- Tạo database <code>uniform_management</code> trước khi chạy Spring Boot.
-- Dùng đúng <code>SPRING_DATASOURCE_USERNAME</code> và <code>SPRING_DATASOURCE_PASSWORD</code>.
-
-### AI báo thiếu model
-
-- Kiểm tra các đường dẫn model trong phần cài đặt.
-- Không đổi tên <code>yolov8_6class/best.pt</code>; service production không fallback sang <code>last.pt</code>.
-- Kiểm tra metadata sáu lớp trong <code>yolov8_6class</code>.
-- Kiểm tra cache/mạng khi Grounding DINO, Florence-2 hoặc InsightFace tải model lần đầu.
-
-### AI chậm hoặc hết bộ nhớ
-
-- Luồng full tải nhiều model và có timeout backend mặc định 300 giây.
-- Dùng chế độ lightweight khi không cần kiểm tra SCHP/Florence-2.
-- Đặt <code>UNIFORM_FORCE_CPU=1</code> khi cần buộc chạy CPU.
-- Chỉ chạy một instance AI cho cùng GPU nếu VRAM hạn chế.
-
-### Không hiển thị ảnh kết quả
-
-- Đặt <code>UNIFORM_AI_OUTPUT_ROOT</code> đúng thư mục <code>uniform-ai/outputs</code> nếu hai service chia sẻ filesystem.
-- Kiểm tra backend có thể truy cập AI tại <code>UNIFORM_AI_BASE_URL</code> nếu dùng HTTP fallback.
-- Không phục vụ trực tiếp đường dẫn local cho trình duyệt; frontend ưu tiên <code>/api/images/{id}</code>.
-
-### Lỗi CORS hoặc camera
-
-- Phát triển local dùng frontend <code>127.0.0.1:5173</code> và backend <code>localhost:8080</code>.
-- Camera trình duyệt hoạt động trên localhost; môi trường triển khai cần HTTPS.
-- Danh sách origin hiện được cấu hình trong <code>SecurityConfig</code>; phải rà soát và thu hẹp danh sách cho domain triển khai thực tế.
-
-## Bảo mật và quyền riêng tư
-
-- Không commit <code>.env</code>, <code>.env.local</code>, password, JWT secret, API token hoặc tunnel token.
-- Không đặt secret trong biến <code>VITE_*</code>.
-- Không commit model weights, ảnh học sinh, dữ liệu sinh trắc học, embedding, uploads hoặc outputs.
-- Dùng secret riêng cho từng môi trường và thay đổi credential khởi tạo ngay sau khi thiết lập.
-- Chỉ cấp quyền đọc dữ liệu khuôn mặt, ảnh và lịch sử cho người có trách nhiệm.
-- Dùng HTTPS và cấu hình CORS hẹp khi triển khai.
-- Sao lưu MySQL và dữ liệu face enrollment theo chính sách bảo vệ dữ liệu của đơn vị vận hành.
-
-README này chỉ dùng URL localhost, đường dẫn tương đối và placeholder; không chứa credential, token, thông tin định danh cá nhân hoặc đường dẫn máy cá nhân.
