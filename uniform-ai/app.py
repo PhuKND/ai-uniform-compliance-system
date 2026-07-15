@@ -182,10 +182,14 @@ def normalize_lightweight_method(value: str | None) -> str:
 def lightweight_method_from_request(default: str | None = None) -> str:
     raw = (
         request.form.get("uniform_method")
+        or request.form.get("uniformMethod")
         or request.form.get("selected_method")
+        or request.form.get("selectedMethod")
         or request.form.get("method")
         or request.args.get("uniform_method")
+        or request.args.get("uniformMethod")
         or request.args.get("selected_method")
+        or request.args.get("selectedMethod")
         or request.args.get("method")
         or default
     )

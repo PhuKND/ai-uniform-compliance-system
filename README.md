@@ -1,147 +1,183 @@
 <h1 align="center">Hệ thống đánh giá tuân thủ đồng phục học sinh bằng AI</h1>
 
 <p align="center">
-  Nền tảng web hỗ trợ nhận diện học sinh, đánh giá đồng phục theo lịch lớp và quản lý kết quả có thể kiểm chứng từ ảnh hoặc camera.
+  Nền tảng web hỗ trợ nhận diện học sinh, đánh giá đồng phục theo lịch lớp và quản lý kết quả từ ảnh.
 </p>
 
 <p align="center">
-  <img alt="Java 17" src="https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&amp;logoColor=white">
-  <img alt="Spring Boot 3.3.5" src="https://img.shields.io/badge/Spring%20Boot-3.3.5-6DB33F?logo=springboot&amp;logoColor=white">
-  <img alt="React 18" src="https://img.shields.io/badge/React-18-61DAFB?logo=react&amp;logoColor=111827">
-  <img alt="TypeScript 5.6" src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&amp;logoColor=white">
-  <img alt="Python 3.10" src="https://img.shields.io/badge/Python-3.10-3776AB?logo=python&amp;logoColor=white">
-  <img alt="MySQL 8" src="https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&amp;logoColor=white">
+  <img alt="Java" src="https://img.shields.io/badge/Java-ED8B00?logo=openjdk&amp;logoColor=white">
+  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-6DB33F?logo=springboot&amp;logoColor=white">
+  <img alt="React" src="https://img.shields.io/badge/React-61DAFB?logo=react&amp;logoColor=111827">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=white">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3776AB?logo=python&amp;logoColor=white">
+  <img alt="MySQL" src="https://img.shields.io/badge/MySQL-4479A1?logo=mysql&amp;logoColor=white">
+  <img alt="YOLOv8" src="https://img.shields.io/badge/YOLOv8-111F68?logo=ultralytics&amp;logoColor=white">
 </p>
 
-Ứng dụng kết hợp YOLOv8 Pose, InsightFace, Grounding DINO, mô hình YOLOv8 Uniform sáu lớp, SCHP và Florence-2 để tạo kết quả giải thích được. Quản trị viên có thể chọn luồng đầy đủ hoặc luồng nhẹ chạy đúng một detector; học sinh có thể xem lịch sử và gửi yêu cầu chỉnh sửa.
+Hệ thống sử dụng **YOLOv8 Pose** để chọn học sinh chính trong ảnh, **InsightFace** để nhận diện hoặc xác minh học sinh và **YOLOv8 Uniform** để phát hiện các thành phần đồng phục.
 
-Repository gồm ba dịch vụ: frontend React/Vite, backend Spring Boot và dịch vụ AI Flask `uniform-ai`.
+Luồng đánh giá mặc định:
+
+```text
+Ảnh đầu vào
+    ↓
+YOLOv8 Pose
+    ↓
+InsightFace
+    ↓
+YOLOv8 Uniform
+    ↓
+Kiểm tra theo lịch đồng phục
+    ↓
+Kết quả và ảnh chú thích
+```
+
+Repository gồm ba phần chính:
+
+- `frontend`: giao diện React.
+- `backend`: REST API Spring Boot.
+- `uniform-ai`: dịch vụ AI Flask.
+
+> README này tập trung vào luồng đánh giá mặc định và các chức năng chính, giúp người đọc dễ theo dõi kiến trúc và cách chạy dự án.
 
 ## Mục lục
 
 - [Chức năng chính](#chức-năng-chính)
-- [Kiến trúc](#kiến-trúc)
-- [Các luồng đánh giá](#các-luồng-đánh-giá-hiện-tại)
-- [Công nghệ](#công-nghệ)
+- [Quy trình đánh giá](#quy-trình-đánh-giá)
+- [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)
+- [Các lớp đồng phục](#các-lớp-đồng-phục)
+- [Công nghệ sử dụng](#công-nghệ-sử-dụng)
 - [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-- [Yêu cầu](#yêu-cầu)
-- [Cài đặt cục bộ](#cài-đặt-cục-bộ)
-- [API quan trọng](#api-quan-trọng)
-- [Build và test](#build-và-test)
-- [Lưu trữ và tương thích](#lưu-trữ-kết-quả-và-tính-tương-thích)
+- [Cài đặt và khởi động](#cài-đặt-và-khởi-động)
+- [API chính](#api-chính)
+- [Build và kiểm tra](#build-và-kiểm-tra)
 
 ## Chức năng chính
 
-- Đăng ký, đăng nhập và phân quyền <code>ADMIN</code>/<code>STUDENT</code>.
-- Quản lý học sinh, tài khoản, dữ liệu khuôn mặt và lịch đồng phục theo lớp, theo thứ.
-- Tải ảnh, chọn chế độ đánh giá và chọn detector cần chạy.
-- Nhận diện người mục tiêu bằng YOLOv8 Pose và nhận diện/xác minh học sinh bằng InsightFace.
-- Đánh giá đầy đủ bằng Grounding DINO hoặc YOLOv8 Uniform kết hợp SCHP và Florence-2.
-- Đánh giá nhanh bằng đúng một detector được chọn, không chạy SCHP hoặc Florence-2.
-- Kiểm tra detection theo vùng cơ thể, loại detection trùng lớp và chuẩn hóa sáu lớp đồng phục.
-- Chấm điểm theo lịch lớp, hiển thị ảnh đã chú thích và cho phép chọn kết quả chính thức.
-- Lưu lịch sử, trừ điểm rèn luyện, thống kê và xử lý yêu cầu chỉnh sửa.
-- Phân tích camera thời gian thực bằng pipeline nhẹ Pose + InsightFace + YOLOv8 Uniform.
-- Nhập ảnh kết quả AI vào MySQL và phục vụ ảnh qua API có xác thực.
+- Đăng ký, đăng nhập và phân quyền `ADMIN`/`STUDENT`.
+- Quản lý học sinh, lớp học, tài khoản và dữ liệu khuôn mặt.
+- Quản lý lịch đồng phục theo lớp và theo ngày.
+- Tải ảnh học sinh để đánh giá đồng phục.
+- Chọn học sinh chính trong ảnh bằng YOLOv8 Pose.
+- Nhận diện hoặc xác minh học sinh bằng InsightFace.
+- Phát hiện các thành phần đồng phục bằng YOLOv8 Uniform.
+- Đối chiếu kết quả phát hiện với lịch đồng phục của lớp.
+- Hiển thị điểm, trạng thái và ảnh đã chú thích.
+- Lưu lịch sử đánh giá và kết quả chính thức.
+- Thống kê kết quả và xử lý yêu cầu chỉnh sửa của học sinh.
 
-## Kiến trúc
+## Quy trình đánh giá
+
+### Bước 1: Tải ảnh
+
+Quản trị viên chọn ảnh cần đánh giá trên giao diện web. Frontend gửi ảnh và thông tin liên quan đến backend.
+
+### Bước 2: Chọn học sinh chính
+
+YOLOv8 Pose phát hiện người trong ảnh và chọn người phù hợp nhất để tiếp tục xử lý.
+
+### Bước 3: Nhận diện học sinh
+
+InsightFace trích xuất đặc trưng khuôn mặt để nhận diện học sinh hoặc xác minh với mã học sinh được cung cấp.
+
+### Bước 4: Phát hiện đồng phục
+
+YOLOv8 Uniform phát hiện các thành phần đồng phục xuất hiện trên học sinh đã chọn.
+
+### Bước 5: Kiểm tra theo lịch
+
+Hệ thống so sánh các thành phần phát hiện được với lịch đồng phục của lớp trong ngày đánh giá.
+
+### Bước 6: Trả kết quả
+
+Hệ thống trả về:
+
+- Học sinh được nhận diện.
+- Các thành phần đồng phục được phát hiện.
+- Thành phần đạt hoặc còn thiếu.
+- Điểm đánh giá.
+- Trạng thái đánh giá.
+- Ảnh đã vẽ khung kết quả.
+
+## Kiến trúc hệ thống
 
 ```mermaid
 flowchart LR
-    Browser["React / Vite<br/>:5173"] -->|"HTTP + JWT"| Backend["Spring Boot API<br/>:8080"]
-    Backend -->|"JPA / Hibernate"| Database[("MySQL<br/>:3307")]
-    Backend -->|"multipart/form-data"| AI["Flask uniform-ai<br/>:5001"]
+    Browser["Frontend<br/>React"] -->|"HTTP + JWT"| Backend["Backend API<br/>Spring Boot"]
+    Backend --> Database[("MySQL")]
+    Backend -->|"Gửi ảnh"| AI["Dịch vụ AI<br/>Flask"]
 
     AI --> Pose["YOLOv8 Pose"]
     AI --> Face["InsightFace"]
-    AI --> Detector{"Detector được chọn"}
-    Detector --> Grounding["Grounding DINO"]
-    Detector --> Yolo["YOLOv8 Uniform<br/>6 lớp"]
-    AI -. "chỉ luồng đầy đủ" .-> SCHP["SCHP ATR"]
-    AI -. "chỉ luồng đầy đủ" .-> Florence["Florence-2"]
+    AI --> Uniform["YOLOv8 Uniform"]
 
-    AI --> Output[("Ảnh chú thích<br/>outputs/")]
-    Output -->|"đường dẫn an toàn hoặc HTTP bridge"| Backend
-    Backend -->|"LONGBLOB + metadata"| Database
-    Backend -->|"GET /api/images/{id}"| Browser
+    Pose --> Result["Kết quả đánh giá"]
+    Face --> Result
+    Uniform --> Result
+
+    Result --> Backend
+    Backend --> Browser
 ```
 
-Backend là cổng API chính của frontend. Sau khi AI tạo ảnh chú thích, <code>AiProcessedImageImporter</code> kiểm tra đường dẫn/phần mở rộng và lưu ảnh vào bảng ảnh dạng <code>LONGBLOB</code>. Frontend đọc ảnh đã quản lý qua <code>GET /api/images/{id}</code>. Nếu backend và AI không dùng chung filesystem, backend có thể tải ảnh qua cầu HTTP của AI.
+Frontend phụ trách giao diện và gửi yêu cầu. Backend xử lý nghiệp vụ, phân quyền và lưu dữ liệu. Dịch vụ AI nhận ảnh, thực hiện nhận diện và phát hiện đồng phục, sau đó trả kết quả về backend.
 
-## Các luồng đánh giá hiện tại
+## Các lớp đồng phục
 
-### Ma trận lựa chọn trên giao diện
+Mô hình YOLOv8 Uniform được huấn luyện để phát hiện sáu lớp:
 
-| Chế độ | Phương pháp | Module được chạy | Module bị bỏ qua |
-| --- | --- | --- | --- |
-| Đánh giá nhanh không dùng SCHP/FLORENCE | YOLOv8 V2 (6 lớp) | YOLOv8 Pose → InsightFace → YOLOv8 Uniform → kiểm tra/chấm điểm | Grounding DINO, SCHP, Florence-2 |
-| Đánh giá nhanh không dùng SCHP/FLORENCE | Grounding DINO V2 | YOLOv8 Pose → InsightFace → Grounding DINO → kiểm tra/chấm điểm | YOLOv8 Uniform, SCHP, Florence-2 |
-| Đánh giá V2 đầy đủ từng phương pháp | YOLOv8 V2 (6 lớp) | YOLOv8 Pose → InsightFace → YOLOv8 Uniform → SCHP → Florence-2 → kiểm tra/chấm điểm | Grounding DINO |
-| Đánh giá V2 đầy đủ từng phương pháp | Grounding DINO V2 | YOLOv8 Pose → InsightFace → Grounding DINO → SCHP → Florence-2 → kiểm tra/chấm điểm | YOLOv8 Uniform |
+| ID | Tên lớp | Ý nghĩa |
+| ---: | --- | --- |
+| 0 | `ao_so_mi_trang` | Áo sơ mi trắng |
+| 1 | `ao_doan_thanh_nien` | Áo Đoàn Thanh niên |
+| 2 | `quan_tay_dai_den` | Quần tây dài màu đen |
+| 3 | `khan_quang_do` | Khăn quàng đỏ |
+| 4 | `quan_short_tay_den` | Quần short màu đen |
+| 5 | `quan_dai_trang` | Quần dài màu trắng |
 
-Mỗi request lightweight mới tạo đúng một candidate và chỉ điền slot lịch sử tương ứng:
+## Công nghệ sử dụng
 
-- <code>LIGHTWEIGHT_YOLOV8_UNIFORM</code> dùng slot YOLOv8.
-- <code>LIGHTWEIGHT_GROUNDING_DINO</code> dùng slot Grounding DINO.
+### Frontend
 
-Các enum và bản ghi cũ vẫn được giữ nguyên. Luồng so sánh full hai phương pháp tại <code>/api/evaluations/compare</code> và các endpoint full V2 riêng vẫn khả dụng.
-
-### Sáu lớp YOLOv8 Uniform
-
-| ID | Khóa chuẩn |
-| ---: | --- |
-| 0 | <code>ao_so_mi_trang</code> |
-| 1 | <code>ao_doan_thanh_nien</code> |
-| 2 | <code>quan_tay_dai_den</code> |
-| 3 | <code>khan_quang_do</code> |
-| 4 | <code>quan_short_tay_den</code> |
-| 5 | <code>quan_dai_trang</code> |
-
-## Công nghệ
-
-### Frontend web
-
-- React 18, TypeScript strict mode.
-- Vite 7.
-- React Router 6.
+- React.
+- TypeScript.
+- Vite.
+- React Router.
 - Axios.
-- Tabler Icons.
-- CSS thuần trong <code>frontend/src/styles.css</code>.
+- CSS.
 
-### Backend API
+### Backend
 
-- Java 17.
-- Spring Boot 3.3.5.
-- Spring Web, Spring WebFlux/WebClient.
-- Spring Security, JWT.
-- Spring Data JPA/Hibernate.
-- MySQL; H2 dùng cho test.
+- Java.
+- Spring Boot.
+- Spring Security.
+- JWT.
+- Spring Data JPA.
+- MySQL.
 - Maven.
 
 ### Dịch vụ AI
 
-- Python 3.10 và Flask.
-- PyTorch, Transformers, Ultralytics, OpenCV.
-- YOLOv8 Pose.
-- InsightFace và ONNX Runtime.
-- Grounding DINO.
-- YOLOv8 Uniform sáu lớp.
-- SCHP ATR.
-- Florence-2.
+- Python.
+- Flask.
+- PyTorch.
+- OpenCV.
+- Ultralytics YOLOv8.
+- InsightFace.
+- ONNX Runtime.
 
 ## Cấu trúc thư mục
 
-~~~text
+```text
 uniform-lib/
 ├── backend/
 │   ├── pom.xml
 │   └── src/
-│       ├── main/java/com/uniform/management/
-│       ├── main/resources/application.properties
+│       ├── main/
 │       └── test/
 ├── frontend/
 │   ├── package.json
 │   ├── vite.config.ts
+│   ├── public/
 │   └── src/
 │       ├── api/
 │       ├── components/
@@ -154,106 +190,66 @@ uniform-lib/
 ├── uniform-ai/
 │   ├── app.py
 │   ├── requirements.txt
-│   ├── .env.example
 │   ├── app/
 │   │   ├── face/
 │   │   ├── pose_estimation/
 │   │   ├── services/
 │   │   ├── uniform_validation/
 │   │   └── utils/
-│   ├── yolov8_6class/
 │   ├── face-recognition-service/
-│   └── test_*.py
+│   ├── yolov8_6class/
+│   ├── storage/
+│   ├── uploads/
+│   └── outputs/
 └── README.md
-~~~
+```
 
-Các thư mục <code>node_modules</code>, <code>dist</code>, <code>target</code>, virtual environment, model weights, dữ liệu khuôn mặt, ảnh tải lên và ảnh đầu ra là dependency hoặc dữ liệu runtime; chúng không nên được commit.
+Các thư mục như `node_modules`, `target`, `dist`, `.venv`, `uploads` và `outputs` là dependency, dữ liệu tạm hoặc dữ liệu phát sinh khi chạy ứng dụng.
 
-## Yêu cầu
+## Cài đặt và khởi động
 
-- Windows 11 hoặc môi trường tương đương có PowerShell.
-- Git.
-- JDK 17.
-- Maven 3.8 trở lên.
-- Node.js đáp ứng Vite 7: từ 20.19 hoặc từ 22.12 trở lên.
-- Python 3.10.
-- MySQL 8.
-- Dung lượng trống cho model và cache.
-- GPU CUDA là tùy chọn; AI có thể chạy CPU nhưng chậm hơn đáng kể.
+Các lệnh dưới đây giả sử terminal đang ở thư mục gốc `uniform-lib`.
 
-Môi trường đã dùng để xác minh repository này: Java 17, Maven 3.8.8, Node.js 24, npm 11 và Python 3.10 trong <code>uniform-ai/.venv</code>.
+### 1. Chuẩn bị cơ sở dữ liệu
 
-## Cài đặt cục bộ
+Tạo database:
 
-Các lệnh dưới đây giả sử terminal đang ở <code>&lt;PROJECT_ROOT&gt;</code>.
-
-### 1. Chuẩn bị MySQL
-
-Cấu hình mặc định dùng database <code>uniform_management</code> tại cổng <code>3307</code>. Kiểm tra dịch vụ MySQL trên Windows:
-
-~~~powershell
-Get-Service -Name "*MySQL*"
-~~~
-
-Nếu tên dịch vụ là <code>MySQL80</code>, mở PowerShell có quyền phù hợp và chạy:
-
-~~~powershell
-Start-Service -Name "MySQL80"
-~~~
-
-Tên dịch vụ và cổng có thể khác theo máy. Tạo database bằng MySQL Workbench hoặc MySQL client:
-
-~~~sql
+```sql
 CREATE DATABASE IF NOT EXISTS uniform_management
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
-~~~
+```
 
-Hibernate đang dùng <code>spring.jpa.hibernate.ddl-auto=update</code>, vì vậy database phải tồn tại trước khi backend khởi động; các bảng sẽ được tạo/cập nhật tự động.
+### 2. Khởi động dịch vụ AI
 
-### 2. Chuẩn bị dịch vụ AI
-
-~~~powershell
-cd <PROJECT_ROOT>\uniform-ai
-py -3.10 -m venv .venv
+```powershell
+cd uniform-ai
+py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
-~~~
+python app.py
+```
 
-Nếu PowerShell chặn script kích hoạt, có thể gọi trực tiếp:
+Các tệp chính cần có:
 
-~~~powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe app.py
-~~~
+- `uniform-ai/yolov8n-pose.pt`.
+- `uniform-ai/yolov8_6class/best.pt`.
+- Dữ liệu khuôn mặt đã đăng ký trong `uniform-ai/storage`.
 
-Các asset cần có cho đầy đủ chức năng:
+Dịch vụ AI mặc định chạy tại:
 
-- <code>uniform-ai/yolov8n-pose.pt</code>.
-- <code>uniform-ai/yolov8_6class/best.pt</code>.
-- Repository SCHP tại <code>uniform-ai/third_party/schp</code>.
-- Checkpoint SCHP tại <code>uniform-ai/weights/exp-schp-201908301523-atr.pth</code>.
-- Dữ liệu InsightFace đã enroll trong thư mục runtime <code>uniform-ai/storage</code>.
+```text
+http://127.0.0.1:5001
+```
 
-Grounding DINO, Florence-2 và InsightFace có thể cần tải model/cache ở lần chạy đầu. Cần kết nối mạng hoặc cache model có sẵn. Các file trọng số lớn không được Git theo dõi.
+### 3. Khởi động backend
 
-Khởi động AI:
+Thiết lập các biến môi trường cần thiết:
 
-~~~powershell
-cd <PROJECT_ROOT>\uniform-ai
-.\.venv\Scripts\python.exe app.py
-~~~
-
-Mặc định: <code>http://127.0.0.1:5001</code>.
-
-### 3. Cấu hình và chạy backend
-
-Không ghi credential thật vào <code>application.properties</code>. Thiết lập biến môi trường trong terminal chạy backend:
-
-~~~powershell
-cd <PROJECT_ROOT>\backend
+```powershell
+cd backend
 $env:DB_URL="jdbc:mysql://localhost:3307/uniform_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&characterEncoding=UTF-8"
 $env:SPRING_DATASOURCE_USERNAME="YOUR_DB_USERNAME"
 $env:SPRING_DATASOURCE_PASSWORD="YOUR_DB_PASSWORD"
@@ -264,143 +260,115 @@ $env:UNIFORM_AI_BASE_URL="http://127.0.0.1:5001"
 $env:UNIFORM_AI_FACE_BASE_URL="http://127.0.0.1:5001"
 $env:UNIFORM_AI_OUTPUT_ROOT=(Resolve-Path "..\uniform-ai\outputs").Path
 mvn spring-boot:run
-~~~
+```
 
-<code>UNIFORM_ADMIN_EMAIL</code> và <code>UNIFORM_ADMIN_PASSWORD</code> chỉ được dùng để tạo admin đầu tiên khi database chưa có admin. Hãy dùng giá trị riêng cho từng môi trường.
+Backend mặc định chạy tại:
 
-<code>UNIFORM_AI_OUTPUT_ROOT</code> phải trỏ tới thư mục output AI trên chính máy backend. Nếu hai dịch vụ không chia sẻ filesystem, để cấu hình này trống và bảo đảm backend truy cập được URL ảnh AI để dùng HTTP fallback.
+```text
+http://localhost:8080
+```
 
-Mặc định: <code>http://localhost:8080</code>.
+Không đưa mật khẩu, JWT secret hoặc thông tin đăng nhập thật lên GitHub.
 
-### 4. Cấu hình và chạy frontend
+### 4. Khởi động frontend
 
-~~~powershell
-cd <PROJECT_ROOT>\frontend
-npm ci
-~~~
+```powershell
+cd frontend
+npm install
+```
 
-Tạo <code>frontend/.env.local</code> cho máy phát triển bằng các giá trị công khai phù hợp môi trường:
+Tạo file `frontend/.env.local`:
 
-~~~dotenv
+```dotenv
 VITE_API_BASE_URL=http://localhost:8080
 VITE_AI_MEDIA_BASE_URL=http://127.0.0.1:5001
-~~~
+```
 
-Không đặt password, JWT secret hoặc token người dùng vào biến <code>VITE_*</code> vì các giá trị này được đóng gói vào mã frontend.
+Khởi động frontend:
 
-Khởi động:
-
-~~~powershell
+```powershell
 npm run dev
-~~~
+```
 
-Mặc định: <code>http://127.0.0.1:5173</code>.
+Frontend mặc định chạy tại:
+
+```text
+http://127.0.0.1:5173
+```
 
 ## Cổng mặc định
 
-| Thành phần | Cổng | URL |
+| Thành phần | Cổng | Địa chỉ |
 | --- | ---: | --- |
-| Frontend Vite | 5173 | <code>http://127.0.0.1:5173</code> |
-| Spring Boot | 8080 | <code>http://localhost:8080</code> |
-| Flask uniform-ai | 5001 | <code>http://127.0.0.1:5001</code> |
-| MySQL | 3307 | Theo <code>DB_URL</code> |
+| Frontend | 5173 | `http://127.0.0.1:5173` |
+| Backend | 8080 | `http://localhost:8080` |
+| Dịch vụ AI | 5001 | `http://127.0.0.1:5001` |
+| MySQL | 3307 | Cấu hình trong `DB_URL` |
 
-## API quan trọng
+## API chính
 
-### API backend
+### Backend
 
-| Method | Endpoint | Mục đích |
+| Phương thức | Endpoint | Mục đích |
 | --- | --- | --- |
-| POST | <code>/api/auth/register</code> | Đăng ký |
-| POST | <code>/api/auth/login</code> | Đăng nhập |
-| POST | <code>/api/admin/evaluations/lightweight</code> | Chạy một lightweight detector đã chọn |
-| POST | <code>/api/admin/evaluations/yolov8-v2</code> | Chạy full V2 YOLOv8 |
-| POST | <code>/api/admin/evaluations/grounding-dino-v2</code> | Chạy full V2 Grounding DINO |
-| POST | <code>/api/evaluations/compare</code> | Luồng so sánh full tương thích cũ |
-| POST | <code>/api/evaluations/compare/start</code> | Bắt đầu comparison full bất đồng bộ |
-| GET | <code>/api/evaluations/compare/status/{jobId}</code> | Đọc trạng thái comparison |
-| POST | <code>/api/evaluations/{runId}/choose-official</code> | Lưu kết quả chính thức |
-| GET | <code>/api/evaluation-history</code> | Lịch sử dành cho admin |
-| GET | <code>/api/evaluation-history/me</code> | Lịch sử của học sinh hiện tại |
-| POST | <code>/api/correction-requests</code> | Gửi yêu cầu chỉnh sửa |
-| GET/PUT | <code>/api/admin/uniform-requirement-schedules/{classId}</code> | Đọc/cập nhật lịch đồng phục |
-| POST | <code>/api/admin/realtime-camera/analyze-frame</code> | Phân tích một frame camera |
-| GET | <code>/api/images/{id}</code> | Đọc ảnh đã lưu có xác thực |
+| POST | `/api/auth/register` | Đăng ký tài khoản |
+| POST | `/api/auth/login` | Đăng nhập |
+| POST | `/api/admin/evaluations/lightweight` | Đánh giá đồng phục từ ảnh |
+| POST | `/api/evaluations/{runId}/choose-official` | Lưu kết quả chính thức |
+| GET | `/api/evaluation-history` | Xem lịch sử đánh giá |
+| GET | `/api/evaluation-history/me` | Xem lịch sử của học sinh |
+| POST | `/api/correction-requests` | Gửi yêu cầu chỉnh sửa |
+| GET/PUT | `/api/admin/uniform-requirement-schedules/{classId}` | Quản lý lịch đồng phục |
+| GET | `/api/images/{id}` | Đọc ảnh kết quả |
 
-Endpoint lightweight nhận <code>multipart/form-data</code>:
+### Dịch vụ AI
 
-- <code>image</code>: bắt buộc.
-- <code>studentCode</code>: tùy chọn; có giá trị thì dùng chế độ verify, không có thì identify.
-- <code>selectedMethod</code>: bắt buộc, nhận <code>YOLOV8_V2</code> hoặc <code>GROUNDING_DINO_V2</code>.
-- <code>uniformMethod</code>: alias tương thích với client cũ.
-
-Ví dụ:
-
-~~~powershell
-curl.exe -X POST "http://localhost:8080/api/admin/evaluations/lightweight" -H "Authorization: Bearer YOUR_ADMIN_TOKEN" -F "image=@.\sample.jpg" -F "studentCode=STUDENT_CODE" -F "selectedMethod=YOLOV8_V2"
-~~~
-
-Ngoại trừ API xác thực công khai, backend yêu cầu JWT. Các endpoint đánh giá và camera dành cho admin.
-
-### API uniform-ai
-
-| Method | Endpoint | Mục đích |
+| Phương thức | Endpoint | Mục đích |
 | --- | --- | --- |
-| GET | <code>/api/ai/health</code> | Trạng thái dịch vụ tích hợp |
-| GET | <code>/api/uniform/health</code> | Trạng thái module đồng phục |
-| POST | <code>/api/ai/evaluate-student-lightweight</code> | Pose + InsightFace + một detector lightweight |
-| POST | <code>/api/uniform/evaluate/lightweight</code> | Một detector lightweight không chạy nhận diện khuôn mặt |
-| POST | <code>/api/uniform/evaluate/yolov8-v2</code> | Full V2 YOLOv8 |
-| POST | <code>/api/uniform/evaluate/grounding-dino-v2</code> | Full V2 Grounding DINO |
-| POST | <code>/api/ai/evaluate-student</code> | Luồng đánh giá học sinh đầy đủ/tương thích |
-| POST | <code>/api/uniform/evaluate</code> | Luồng comparison AI tương thích |
-| POST | <code>/api/realtime-camera/analyze-frame</code> | Pipeline camera nhẹ |
-| POST | <code>/api/face/enroll</code> | Enroll khuôn mặt |
-| POST | <code>/api/face/verify</code> | Xác minh khuôn mặt |
-| POST | <code>/api/face/identify</code> | Nhận diện khuôn mặt |
+| GET | `/api/ai/health` | Kiểm tra trạng thái dịch vụ |
+| GET | `/api/uniform/health` | Kiểm tra module đánh giá |
+| POST | `/api/ai/evaluate-student-lightweight` | Nhận diện học sinh và đánh giá đồng phục |
+| POST | `/api/uniform/evaluate/lightweight` | Đánh giá đồng phục từ ảnh |
+| POST | `/api/face/enroll` | Đăng ký dữ liệu khuôn mặt |
+| POST | `/api/face/verify` | Xác minh học sinh |
+| POST | `/api/face/identify` | Nhận diện học sinh |
 
-AI lightweight chấp nhận <code>uniform_method</code>, <code>selected_method</code> hoặc <code>method</code>. Backend gửi khóa chuẩn <code>LIGHTWEIGHT_YOLOV8_UNIFORM</code> hoặc <code>LIGHTWEIGHT_GROUNDING_DINO</code>. Thiếu method hoặc method không hỗ trợ trả HTTP 400.
+Các API cần xác thực sử dụng JWT do backend cấp sau khi đăng nhập.
 
-## Build và test
+## Build và kiểm tra
 
-### Build frontend
+### Frontend
 
-~~~powershell
-cd <PROJECT_ROOT>\frontend
+```powershell
+cd frontend
 npm run build
-~~~
+```
 
-<code>package.json</code> hiện không cấu hình script test hoặc lint riêng; <code>npm run build</code> chạy TypeScript build trước Vite build.
+### Backend
 
-### Test và đóng gói backend
-
-~~~powershell
-cd <PROJECT_ROOT>\backend
+```powershell
+cd backend
 mvn test
 mvn package -DskipTests
-~~~
+```
 
-Test backend dùng H2 profile, không cần MySQL hoặc AI server đang chạy.
+### Dịch vụ AI
 
-### Kiểm tra AI
+```powershell
+cd uniform-ai
+.\.venv\Scripts\python.exe -m py_compile app.py
+```
 
-Luôn dùng Python trong virtual environment:
+## Lưu ý khi đưa dự án lên GitHub
 
-~~~powershell
-cd <PROJECT_ROOT>\uniform-ai
-.\.venv\Scripts\python.exe -m py_compile app.py test_lightweight_method_selection.py
-.\.venv\Scripts\python.exe -m unittest -v test_lightweight_method_selection.py test_uniform_v2_contract.py
-~~~
+Không commit các nội dung sau:
 
-Các file <code>test_grounding.py</code>, <code>test_florence.py</code>, <code>test_florence2.py</code> và <code>test_pose_yolo_association.py</code> là script kiểm tra model/CLI thủ công; không chạy test discovery toàn thư mục nếu chưa chuẩn bị model, ảnh đầu vào và GPU phù hợp.
+- Mật khẩu, JWT secret hoặc file `.env` chứa dữ liệu thật.
+- Thư mục môi trường ảo.
+- Dependency đã cài đặt.
+- Tệp build.
+- Ảnh tải lên và ảnh kết quả.
+- Dữ liệu khuôn mặt.
+- Trọng số mô hình có dung lượng lớn nếu repository không sử dụng Git LFS.
 
-## Lưu trữ kết quả và tính tương thích
-
-- <code>EvaluationRun</code> giữ hai slot lịch sử: Grounding DINO ở slot 1 và YOLOv8 ở slot 2.
-- Full comparison có thể điền cả hai slot.
-- Lightweight single-method chỉ điền slot đã chọn; slot còn lại không được hiển thị như một kết quả giả.
-- <code>results</code>/<code>candidates</code> trong response chứa đúng các phương pháp thực sự đã chạy.
-- Kết quả chính thức tạo bản ghi <code>EvaluationHistory</code>, ảnh gốc/ảnh xử lý và snapshot lịch đồng phục.
-- Bản ghi cũ, enum cũ và các route frontend cũ tiếp tục được đọc.
-- Không có migration database mới cho việc tách lightweight method.
-
+Nên sử dụng `.gitignore` để loại bỏ các tệp runtime và thông tin nhạy cảm.

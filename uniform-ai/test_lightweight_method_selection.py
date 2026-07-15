@@ -32,12 +32,12 @@ class LightweightMethodSelectionTest(unittest.TestCase):
             "reason": "mocked pose result",
         }
 
-    def _upload(self, method: str | None = None) -> dict:
+    def _upload(self, method: str | None = None, method_field: str = "uniform_method") -> dict:
         data: dict = {
             "image": (io.BytesIO(self.image_bytes), "input.jpg"),
         }
         if method is not None:
-            data["uniform_method"] = method
+            data[method_field] = method
         return data
 
     @staticmethod
@@ -110,6 +110,21 @@ class LightweightMethodSelectionTest(unittest.TestCase):
             self.assertEqual(response.status_code, 400)
             self.assertIn("uniform_method must be one of", response.get_data(as_text=True))
             store_upload.assert_not_called()
+
+    def test_request_method_aliases_normalize_to_each_lightweight_detector(self) -> None:
+        expected_methods = {
+            "YOLOV8_V2": uniform_app.METHOD_LIGHTWEIGHT_YOLOV8,
+            "GROUNDING_DINO_V2": uniform_app.METHOD_LIGHTWEIGHT_GROUNDING_DINO,
+        }
+        for method_field in ["uniform_method", "uniformMethod", "selected_method", "selectedMethod", "method"]:
+            for request_method, expected_method in expected_methods.items():
+                with self.subTest(method_field=method_field, request_method=request_method):
+                    with uniform_app.app.test_request_context(
+                        "/api/ai/evaluate-student-lightweight",
+                        method="POST",
+                        data={method_field: request_method},
+                    ):
+                        self.assertEqual(uniform_app.lightweight_method_from_request(), expected_method)
 
     def test_yolov8_selection_runs_only_yolov8_uniform_and_returns_one_candidate(self) -> None:
         method = uniform_app.METHOD_LIGHTWEIGHT_YOLOV8

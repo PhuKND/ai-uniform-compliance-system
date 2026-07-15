@@ -40,6 +40,9 @@ type ImageSource = "file" | "camera";
 type CameraFacingMode = "environment" | "user";
 type EvaluationMode = "lightweight" | "advanced";
 
+export const DEFAULT_EVALUATION_MODE: EvaluationMode = "lightweight";
+export const DEFAULT_EVALUATION_METHOD: AdvancedEvaluationMethod = "YOLOV8_V2";
+
 const CAMERA_MODE_LABELS: Record<CameraFacingMode, string> = {
   environment: "Camera sau",
   user: "Camera trước",
@@ -71,8 +74,8 @@ export function UploadPage() {
   const [compressionNote, setCompressionNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>("advanced");
-  const [selectedMethod, setSelectedMethod] = useState<AdvancedEvaluationMethod>("YOLOV8_V2");
+  const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>(DEFAULT_EVALUATION_MODE);
+  const [selectedMethod, setSelectedMethod] = useState<AdvancedEvaluationMethod>(DEFAULT_EVALUATION_METHOD);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export function UploadPage() {
   );
   const effectiveSubmitLabel =
     evaluationMode === "lightweight"
-      ? `Chạy nhanh ${selectedMethodInfo.shortLabel}`
+      ? `Chạy đánh giá ${selectedMethodInfo.shortLabel}`
       : `Chạy đầy đủ ${selectedMethodInfo.shortLabel}`;
   const cameraSelected = imageSource === "camera";
   const hasSingleCamera = availableVideoDevices.length === 1;
@@ -359,10 +362,10 @@ export function UploadPage() {
               onClick={() => setEvaluationMode("lightweight")}
               disabled={submitting}
             >
-              <strong>Đánh giá nhanh không dùng SCHP/FLORENCE</strong>
-              <span>Chỉ chạy phương pháp được chọn bên dưới bằng Pose + InsightFace + detector và bỏ qua SCHP/FLORENCE.</span>
+              <strong>Đánh giá</strong>
+              <span>Chạy YOLOv8 Pose + InsightFace + YOLOv8 Uniform; chỉ một detector được chọn.</span>
             </button>
-            <button
+            {/* <button
               className={`method-option ${evaluationMode === "advanced" ? "active" : ""}`}
               type="button"
               onClick={() => setEvaluationMode("advanced")}
@@ -370,7 +373,7 @@ export function UploadPage() {
             >
               <strong>Đánh giá V2 đầy đủ từng phương pháp</strong>
               <span>Giữ đầy đủ luồng nhưng sẽ mất nhiều thời gian xử lý.</span>
-            </button>
+            </button> */}
           </div>
 
           <div className="method-selector" aria-label="Chọn phương pháp đánh giá">
