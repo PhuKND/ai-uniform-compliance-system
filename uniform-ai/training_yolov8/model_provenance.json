@@ -1,0 +1,23 @@
+{
+  "deployment_model": "best.pt",
+  "base_model_weights": "yolov8s.pt",
+  "framework": "Ultralytics YOLOv8",
+  "training_method": "transfer learning / fine-tuning",
+  "provenance_statement": "The detector was fine-tuned from yolov8s.pt using the Ultralytics YOLOv8 framework; it was not implemented from scratch.",
+  "nc": 6,
+  "class_names": {
+    "0": "ao_so_mi_trang",
+    "1": "ao_doan_thanh_nien",
+    "2": "quan_tay_dai_den",
+    "3": "khan_quang_do",
+    "4": "quan_short_tay_den",
+    "5": "quan_dai_trang"
+  },
+  "checkpoint_status": {
+    "best_pt": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training/weights/best.pt",
+    "best_pt_included": true,
+    "last_pt": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_training/weights/last.pt",
+    "last_pt_included": true,
+    "note": "Both best.pt and last.pt were included."
+  }
+}

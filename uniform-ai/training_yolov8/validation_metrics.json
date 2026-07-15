@@ -1,0 +1,37 @@
+{
+  "metrics": {
+    "metrics/precision(B)": 0.9318855743489304,
+    "metrics/recall(B)": 0.9372927046846636,
+    "metrics/mAP50(B)": 0.9574369496049472,
+    "metrics/mAP50-95(B)": 0.7376114278471765,
+    "fitness": 0.7376114278471765
+  },
+  "nc": 6,
+  "class_names": {
+    "0": "ao_so_mi_trang",
+    "1": "ao_doan_thanh_nien",
+    "2": "quan_tay_dai_den",
+    "3": "khan_quang_do",
+    "4": "quan_short_tay_den",
+    "5": "quan_dai_trang"
+  },
+  "validation_object_instances_per_class": {
+    "ao_so_mi_trang": 213,
+    "ao_doan_thanh_nien": 143,
+    "quan_tay_dai_den": 160,
+    "khan_quang_do": 165,
+    "quan_short_tay_den": 91,
+    "quan_dai_trang": 129
+  },
+  "validation_class_ids_present": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "validation_executed": true,
+  "warnings": [],
+  "errors": []
+}

@@ -1,0 +1,11 @@
+path: /content/uniform_yolo_dataset
+train: images/train
+val: images/val
+nc: 6
+names:
+  0: ao_so_mi_trang
+  1: ao_doan_thanh_nien
+  2: quan_tay_dai_den
+  3: khan_quang_do
+  4: quan_short_tay_den
+  5: quan_dai_trang

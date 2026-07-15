@@ -1,0 +1,11 @@
+{
+  "validation_run_dir": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/runs/uniform_detector_validation",
+  "validation_log": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/framework_logs/20260630_053824_validation.log",
+  "validation_metrics_json": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/validation_metrics.json",
+  "validation_summary_csv": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/validation_summary.csv",
+  "validation_artifact_report_json": "/content/drive/MyDrive/DATN2/yolov8_uniform_training_output/validation_artifact_report.json",
+  "validated_split": "val",
+  "validation_executed": true,
+  "warnings_count": 0,
+  "errors_count": 0
+}
